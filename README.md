@@ -647,7 +647,7 @@ Aruvi/
 
 ## 📄 License
 
-MIT License — Free to use, modify, and distribute.
+BSD 3-Clause License — Free to use, modify, and distribute with attribution.
 
 ---
 
