@@ -5,7 +5,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import type { TokenSubmission } from "@/types/tokenSubmission";
+
+// Inlined type to avoid Vercel build path alias issues
+interface TokenSubmission {
+  id: string;
+  wrapperAddress: string;
+  underlyingAddress: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  underlyingSymbol: string;
+  submittedBy: string;
+  submittedAt: number;
+  status: 'pending' | 'approved' | 'rejected';
+  validationResults: {
+    isLegitContract: boolean;
+    hasERC7984Interface: boolean;
+    hasUnderlyingToken: boolean;
+    isWhitelistedInGateway: boolean;
+    validationErrors: string[];
+  };
+  adminNotes?: string;
+  reviewedBy?: string;
+  reviewedAt?: number;
+}
 
 const SUBMISSIONS_FILE = path.join(process.cwd(), "data", "token-submissions.json");
 

@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
-import type { DonationRequest, DonationSubmission } from "@/types/donation";
+
+// Inlined types to avoid Vercel build path alias issues
+interface DonationRequest {
+  id: string;
+  walletAddress: string;
+  cause: string;
+  description?: string;
+  targetAmount?: string;
+  receivedAmount: string;
+  createdAt: string;
+  status: 'active' | 'completed' | 'paused';
+}
+
+interface DonationSubmission {
+  walletAddress: string;
+  cause: string;
+  description?: string;
+  targetAmount?: string;
+}
 
 const DONATIONS_FILE = join(process.cwd(), "data", "donations.json");
 

@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleCors, setCorsHeaders } from "@/lib/cors";
 import { apiRateLimit } from "@/lib/rateLimit";
-import { MerchantRegistration } from "@/types/donation";
 import * as fs from "fs";
 import * as path from "path";
+
+// Inlined type to avoid Vercel build path alias issues
+interface MerchantRegistration {
+  id: string;
+  walletAddress: string;
+  businessName: string;
+  businessType?: string;
+  website?: string;
+  email: string;
+  description?: string;
+  status: "pending" | "approved" | "rejected";
+  timestamp: number;
+  approvedBy?: string;
+  approvedAt?: number;
+  rejectionReason?: string;
+}
 
 // File-based persistent storage
 const DATA_DIR = path.join(process.cwd(), "data");
