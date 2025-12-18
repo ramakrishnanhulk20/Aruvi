@@ -6,7 +6,7 @@
  */
 
 import { ethers } from 'ethers';
-import type { FhevmInstance } from '@zama-fhe/relayer-sdk';
+import type { FhevmInstance } from '@zama-fhe/relayer-sdk/node';
 import type { DecryptionSignature } from './types';
 
 // =============================================================================
