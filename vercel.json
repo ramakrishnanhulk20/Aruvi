@@ -7,11 +7,6 @@
   "outputDirectory": "frontend/.next",
 
   "regions": ["iad1"],
-  "functions": {
-    "frontend/app/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
