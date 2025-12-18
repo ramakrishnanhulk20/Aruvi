@@ -82,38 +82,97 @@ Open http://localhost:3000
 
 ### The Payment Flow
 
+#### Customer Journey
+```mermaid
+flowchart LR
+    subgraph WRAP ["1️⃣ WRAP"]
+        A1[USDC] -->|1:1| A2[cUSDC]
+        A3[Balance now ENCRYPTED]
+    end
+    
+    subgraph AUTH ["2️⃣ AUTHORIZE"]
+        B1[Grant gateway<br/>operator rights]
+        B2[1 hour limit]
+    end
+    
+    subgraph PAY ["3️⃣ PAY"]
+        C1[Pay merchant]
+        C2[Amount hidden<br/>on-chain]
+    end
+    
+    subgraph DONE ["4️⃣ DONE"]
+        D1[Receipt generated]
+        D2[✅ Complete]
+    end
+    
+    WRAP --> AUTH --> PAY --> DONE
+    
+    style WRAP fill:#e1f5fe
+    style AUTH fill:#fff3e0
+    style PAY fill:#f3e5f5
+    style DONE fill:#e8f5e9
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        CUSTOMER JOURNEY                             │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. WRAP          2. AUTHORIZE         3. PAY           4. DONE    │
-│  ─────────        ────────────         ─────            ──────     │
-│                                                                     │
-│  USDC → cUSDC     Grant gateway        Pay merchant     Receipt    │
-│  (1:1 ratio)      operator rights      (encrypted)      generated  │
-│                   (1 hour limit)                                   │
-│                                                                     │
-│  Balance now      Gateway can          Amount hidden    Customer   │
-│  ENCRYPTED        transfer for you     on-chain         done!      │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────────────┐
-│                        MERCHANT JOURNEY                             │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. REGISTER      2. ADD PRODUCTS      3. RECEIVE       4. DECRYPT │
-│  ──────────       ────────────         ────────         ───────    │
-│                                                                     │
-│  Sign up as       Create catalog       Get paid in      See your   │
-│  merchant         with prices          encrypted        actual     │
-│                                        tokens           revenue    │
-│                                                                     │
-│  One-time         Link to orders       Revenue total    For taxes  │
-│  setup                                 stays private    & reports  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+#### Merchant Journey
+```mermaid
+flowchart LR
+    subgraph REG ["1️⃣ REGISTER"]
+        A1[Sign up as merchant]
+        A2[One-time setup]
+    end
+    
+    subgraph PROD ["2️⃣ ADD PRODUCTS"]
+        B1[Create catalog]
+        B2[Set prices]
+    end
+    
+    subgraph RECV ["3️⃣ RECEIVE"]
+        C1[Get paid in<br/>encrypted tokens]
+        C2[Revenue stays private]
+    end
+    
+    subgraph DEC ["4️⃣ DECRYPT"]
+        D1[View actual revenue]
+        D2[For taxes & reports]
+    end
+    
+    REG --> PROD --> RECV --> DEC
+    
+    style REG fill:#e1f5fe
+    style PROD fill:#fff3e0
+    style RECV fill:#f3e5f5
+    style DEC fill:#e8f5e9
+```
+
+#### Detailed Payment Sequence
+```mermaid
+sequenceDiagram
+    participant C as 👤 Customer
+    participant W as 🔐 Wrapper
+    participant G as 💳 Gateway
+    participant M as 🏪 Merchant
+    
+    Note over C,M: Step 1: Preparation
+    C->>W: wrap(100 USDC)
+    W-->>C: ✅ Receive 100 cUSDC (encrypted)
+    C->>W: setOperator(gateway, 1hr)
+    Note over C: Gateway authorized
+    
+    Note over C,M: Step 2: Payment
+    C->>G: pay(merchant, amount, orderId)
+    G->>W: transferFrom(customer → merchant)
+    W-->>G: ✅ Transfer success
+    G-->>M: 📧 Payment notification
+    
+    Note over C,M: Step 3: Verification
+    M->>G: getPaymentStatus(orderId)
+    G-->>M: ✅ Confirmed (encrypted amount)
+    
+    Note over C,M: Step 4: Revenue Check
+    M->>G: getMerchantTotal()
+    G-->>M: 🔐 Encrypted total
+    M->>G: decryptTotal(signature)
+    G-->>M: 💰 Actual revenue revealed
 ```
 
 ### What's Encrypted?
@@ -129,6 +188,86 @@ Open http://localhost:3000
 ---
 
 ## 🏗️ Architecture
+
+### System Overview
+```mermaid
+flowchart TB
+    subgraph USER ["👤 User Layer"]
+        CW[Customer Wallet]
+        MW[Merchant Website]
+    end
+    
+    subgraph APP ["💻 Application Layer"]
+        UI[Aruvi Frontend<br/>Next.js 16]
+        API[API Routes]
+    end
+    
+    subgraph CONTRACT ["📜 Smart Contract Layer"]
+        WRAP[Confidential Wrapper<br/>ERC7984]
+        GATE[Payment Gateway<br/>Orders & Payments]
+        PROD[Product Registry<br/>Catalog]
+        REF[Refund Manager<br/>Disputes]
+    end
+    
+    subgraph INFRA ["⛓️ Infrastructure Layer"]
+        FHE[ZAMA fhEVM<br/>Encrypted State]
+        ERC[Underlying ERC20<br/>USDC / xUSD]
+        REL[ZAMA Relayer<br/>Decryption Oracle]
+    end
+    
+    CW -->|Connect| UI
+    MW -->|Integrate| API
+    UI -->|Wrap/Pay| WRAP
+    UI -->|Checkout| GATE
+    API -->|Verify| GATE
+    
+    WRAP -->|Encrypted Balance| FHE
+    GATE -->|Payment Records| FHE
+    GATE -->|Track| PROD
+    GATE -->|Process| REF
+    
+    WRAP <-->|Lock/Unlock| ERC
+    FHE <-->|Decrypt| REL
+    
+    style USER fill:#e3f2fd
+    style APP fill:#fff8e1
+    style CONTRACT fill:#fce4ec
+    style INFRA fill:#e8f5e9
+```
+
+### Contract Interactions
+```mermaid
+flowchart LR
+    subgraph TOKENS ["Token Layer"]
+        ERC20[USDC/xUSD<br/>Standard ERC20]
+        WRAP[Confidential Wrapper<br/>euint64 balances]
+    end
+    
+    subgraph BUSINESS ["Business Logic"]
+        GATE[Payment Gateway]
+        PROD[Product Registry]
+        REF[Refund Manager]
+    end
+    
+    subgraph PRIVACY ["Privacy Layer"]
+        FHE[fhEVM<br/>Homomorphic Ops]
+        OP[Operator Pattern<br/>Time-limited]
+    end
+    
+    ERC20 -->|wrap/unwrap| WRAP
+    WRAP -->|encrypted state| FHE
+    WRAP -->|authorize| OP
+    
+    GATE -->|use operator| WRAP
+    GATE -->|inventory| PROD
+    GATE -->|disputes| REF
+    
+    OP -->|transfer permission| GATE
+    
+    style TOKENS fill:#e1f5fe
+    style BUSINESS fill:#fff3e0
+    style PRIVACY fill:#f3e5f5
+```
 
 ### Smart Contracts
 
@@ -295,7 +434,160 @@ JWT_SECRET=your-super-secret-key-at-least-32-characters
 
 ---
 
-## 🛠️ Development
+## � Merchant Integration Guide
+
+Want to accept Aruvi payments on your website? Here's how:
+
+### Option 1: Redirect to Aruvi Checkout
+
+Simplest integration — redirect customers to Aruvi's hosted checkout page:
+
+```html
+<a href="https://your-aruvi-instance.com/checkout?merchant=YOUR_ADDRESS&amount=1000000&orderId=ORDER123">
+  Pay with Aruvi
+</a>
+```
+
+Query parameters:
+- `merchant` — Your wallet address (registered as merchant)
+- `amount` — Amount in token's smallest unit (1000000 = 1 USDC with 6 decimals)
+- `orderId` — Your unique order reference
+
+### Option 2: Direct Contract Integration
+
+For full control, interact with the PaymentGateway contract directly:
+
+#### 1. Install Dependencies
+
+```bash
+npm install ethers wagmi
+```
+
+#### 2. Initialize Contract
+
+```typescript
+import { ethers } from 'ethers';
+
+// USDC System (Sepolia)
+const GATEWAY_ADDRESS = '0x5B263646881afd742c157D8Efc307ac39E65662e';
+const WRAPPER_ADDRESS = '0x5f8D47C188478fDf89a9aff7275b86553fc126fe';
+
+// Gateway ABI (minimal)
+const GATEWAY_ABI = [
+  'function processPayment(address customer, bytes32 orderId, bytes calldata encryptedAmount) external',
+  'function getPayment(bytes32 orderId) external view returns (tuple(address customer, address merchant, uint256 timestamp, bool refunded))',
+  'function registerMerchant() external',
+  'event PaymentProcessed(bytes32 indexed orderId, address indexed customer, address indexed merchant)'
+];
+
+const gateway = new ethers.Contract(GATEWAY_ADDRESS, GATEWAY_ABI, provider);
+```
+
+#### 3. Register as Merchant (One-time)
+
+```typescript
+// Connect with merchant's wallet
+const signer = await provider.getSigner();
+const gatewayWithSigner = gateway.connect(signer);
+
+// Register (only needed once)
+const tx = await gatewayWithSigner.registerMerchant();
+await tx.wait();
+console.log('Merchant registered!');
+```
+
+#### 4. Customer Payment Flow
+
+```typescript
+// Customer must first:
+// 1. Wrap USDC → cUSDC via Wrapper contract
+// 2. Call setOperator(GATEWAY_ADDRESS, expiryTimestamp) on Wrapper
+
+// Then process payment:
+const orderId = ethers.encodeBytes32String('ORDER-' + Date.now());
+const encryptedAmount = customerEncryptedInput; // From ZAMA FHE SDK
+
+const tx = await gatewayWithSigner.processPayment(
+  customerAddress,
+  orderId,
+  encryptedAmount
+);
+await tx.wait();
+```
+
+#### 5. Verify Payment
+
+```typescript
+// Check payment status
+const payment = await gateway.getPayment(orderId);
+
+if (payment.timestamp > 0 && !payment.refunded) {
+  console.log('Payment confirmed!');
+  // Fulfill order...
+}
+```
+
+#### 6. Listen for Payment Events
+
+```typescript
+gateway.on('PaymentProcessed', (orderId, customer, merchant) => {
+  console.log(`Payment received: ${orderId}`);
+  // Webhook to your backend, fulfill order, etc.
+});
+```
+
+### Option 3: Use Aruvi API Routes
+
+Call Aruvi's API endpoints from your backend:
+
+```typescript
+// Create payment session
+const response = await fetch('https://your-aruvi-instance.com/api/payment/session', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    merchant: 'YOUR_WALLET_ADDRESS',
+    amount: '1000000',
+    orderId: 'ORDER123',
+    returnUrl: 'https://yoursite.com/success'
+  })
+});
+
+const { sessionId, checkoutUrl } = await response.json();
+// Redirect customer to checkoutUrl
+```
+
+```typescript
+// Verify payment
+const verify = await fetch('https://your-aruvi-instance.com/api/payment/verify', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ orderId: 'ORDER123' })
+});
+
+const { verified, txHash } = await verify.json();
+```
+
+### Contract ABIs
+
+Full ABIs available at:
+- `frontend/lib/abi/PaymentGateway.json`
+- `frontend/lib/abi/ConfidentialUSDCWrapper.json`
+- `frontend/lib/abi/ProductRegistry.json`
+- `frontend/lib/abi/RefundManager.json`
+
+### Integration Checklist
+
+- [ ] Register your wallet as merchant on PaymentGateway
+- [ ] Store customer's orderId for tracking
+- [ ] Listen for `PaymentProcessed` events OR poll `getPayment()`
+- [ ] Handle refund requests via RefundManager
+- [ ] Test with xUSD system first (free mint)
+- [ ] Switch to USDC system for production
+
+---
+
+## �🛠️ Development
 
 ### Deploy Your Own Contracts
 
