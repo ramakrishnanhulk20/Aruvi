@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aruvi Integration Demo</title>
+  <script src="/sdk.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #fce7f3 0%, #fff 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    h1 {
+      font-size: 32px;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    
+    .subtitle {
+      color: #6b7280;
+      font-size: 16px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+    
+    .card h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: #1f2937;
+    }
+    
+    .product {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .product-info h3 {
+      font-size: 18px;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+    
+    .product-price {
+      font-size: 24px;
+      font-weight: bold;
+      color: #ec4899;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #ec4899;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #db2777;
+    }
+    
+    .btn-outline {
+      background: transparent;
+      color: #ec4899;
+      border: 2px solid #ec4899;
+    }
+    
+    .btn-outline:hover {
+      background: #fce7f3;
+    }
+    
+    .input-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #ec4899;
+    }
+    
+    .status {
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+    
+    .status-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+    
+    .status-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    
+    .code-block {
+      background: #1f2937;
+      color: #f3f4f6;
+      padding: 16px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+    
+    .demo-links {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛍️ Aruvi Demo Store</h1>
+      <p class="subtitle">Test confidential payment integration</p>
+    </div>
+
+    <!-- Products Demo -->
+    <div class="card">
+      <h2>Option 1: Simple Link Integration</h2>
+      <p style="color: #6b7280; margin-bottom: 16px;">Just create a link - no JavaScript required!</p>
+      
+      <div class="product">
+        <div class="product-info">
+          <h3>Premium Widget</h3>
+          <p style="color: #6b7280;">Digital product</p>
+        </div>
+        <div>
+          <div class="product-price">10.5 cUSDC</div>
+          <a href="/checkout?amount=10.5&merchant=0x7E65E527Cbee544910EaF956b047479B0653b474&orderId=DEMO001&returnUrl=https://muthirai.app/demo">
+            <button class="btn btn-primary">Pay with Aruvi</button>
+          </a>
+        </div>
+      </div>
+
+      <div class="code-block">
+&lt;a href="https://muthirai.app/checkout?amount=10.5&merchant=0xYOUR_ADDRESS&orderId=ORDER123&returnUrl=https://yoursite.com/success"&gt;
+  Pay with Muthirai
+&lt;/a&gt;
+      </div>
+    </div>
+
+    <!-- Documentation Links -->
+    <div class="card">
+      <h2>📚 Resources</h2>
+      <div class="demo-links">
+        <a href="/MERCHANT_INTEGRATION.md" target="_blank">
+          <button class="btn btn-outline">Integration Guide</button>
+        </a>
+        <a href="https://github.com/aruvi/aruvi" target="_blank">
+          <button class="btn btn-outline">GitHub</button>
+        </a>
+        <a href="/audit" target="_blank">
+          <button class="btn btn-outline">Tax Audit Portal</button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize SDK
+    let aruviInstance;
+
+    // SDK Payment Handler
+    document.getElementById('sdk-pay-btn').addEventListener('click', async () => {
+      const merchantAddress = document.getElementById('merchant-address').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const orderId = document.getElementById('order-id').value;
+      const statusDiv = document.getElementById('status');
+
+      if (!merchantAddress.startsWith('0x')) {
+        statusDiv.innerHTML = '<div class="status status-error">Invalid merchant address</div>';
+        return;
+      }
+
+      statusDiv.innerHTML = '<div class="status status-success">Redirecting to checkout...</div>';
+
+      try {
+        aruviInstance = Aruvi.init({
+          merchantAddress,
+          network: 'sepolia'
+        });
+
+        await aruviInstance.checkout({
+          amount,
+          orderId,
+          onSuccess: (result) => {
+            statusDiv.innerHTML = `
+              <div class="status status-success">
+                ✓ Payment Successful!<br>
+                Payment ID: ${result.paymentId}<br>
+                Tx Hash: ${result.txHash}<br>
+                Order ID: ${result.orderId}
+              </div>
+            `;
+          },
+          onError: (error) => {
+            statusDiv.innerHTML = `<div class="status status-error">Payment failed: ${error.message}</div>`;
+          }
+        });
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="status status-error">Error: ${error.message}</div>`;
+      }
+    });
+
+    // Payment Verification Handler
+    document.getElementById('verify-btn').addEventListener('click', async () => {
+      const paymentId = document.getElementById('payment-id').value;
+      const merchantAddress = document.getElementById('merchant-address').value;
+      const verifyDiv = document.getElementById('verify-status');
+
+      if (!paymentId.startsWith('0x')) {
+        verifyDiv.innerHTML = '<div class="status status-error">Invalid payment ID</div>';
+        return;
+      }
+
+      verifyDiv.innerHTML = '<div class="status status-success">Verifying on blockchain...</div>';
+
+      try {
+       Minimal script - real demo is at /merchant-demo.html

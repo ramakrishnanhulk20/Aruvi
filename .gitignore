@@ -1,0 +1,29 @@
+# secrets
+.env
+*.env
+.env*.local
+!.env.example
+
+# node
+node_modules/
+
+# build
+artifacts/
+cache/
+types/
+dist/
+coverage/
+.next/
+out/
+*.tsbuildinfo
+
+# data files (merchant registrations)
+frontend/data/
+
+# Vercel
+.vercel
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
