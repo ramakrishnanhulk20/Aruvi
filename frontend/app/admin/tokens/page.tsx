@@ -23,8 +23,31 @@ import {
   Badge,
   Textarea,
 } from "@/components/ui";
-import type { TokenSubmission } from "@/types/tokenSubmission";
 import toast from "react-hot-toast";
+
+// Inlined type to avoid Vercel build path alias issues
+interface TokenSubmission {
+  id: string;
+  wrapperAddress: string;
+  underlyingAddress: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  underlyingSymbol: string;
+  submittedBy: string;
+  submittedAt: number;
+  status: 'pending' | 'approved' | 'rejected';
+  validationResults: {
+    isLegitContract: boolean;
+    hasERC7984Interface: boolean;
+    hasUnderlyingToken: boolean;
+    isWhitelistedInGateway: boolean;
+    validationErrors: string[];
+  };
+  adminNotes?: string;
+  reviewedBy?: string;
+  reviewedAt?: number;
+}
 
 export default function AdminTokensPage() {
   const { address } = useAccount();

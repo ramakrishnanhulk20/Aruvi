@@ -25,8 +25,26 @@ import {
   Textarea,
 } from "@/components/ui";
 import { formatAddress } from "@/lib/utils";
-import type { DonationRequest, DonationSubmission } from "@/types/donation";
 import Link from "next/link";
+
+// Inlined types to avoid Vercel build path alias issues
+interface DonationRequest {
+  id: string;
+  walletAddress: string;
+  cause: string;
+  description?: string;
+  targetAmount?: string;
+  receivedAmount: string;
+  createdAt: string;
+  status: 'active' | 'completed' | 'paused';
+}
+
+interface DonationSubmission {
+  walletAddress: string;
+  cause: string;
+  description?: string;
+  targetAmount?: string;
+}
 
 export default function DonationsPage() {
   const { address, isConnected } = useAccount();
