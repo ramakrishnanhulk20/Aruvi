@@ -418,7 +418,7 @@ export default function TokensPage() {
                   <div className="p-4 bg-white dark:bg-dark-900 rounded-lg border-2 border-cyan-200 dark:border-cyan-800">
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-sm font-medium text-dark-700 dark:text-dark-300">Direct Transfer</div>
-                      <Badge variant="secondary" className="text-[8px]">P2P • No Gateway</Badge>
+                      <Badge variant="info" className="text-[8px]">P2P • No Gateway</Badge>
                     </div>
                     <div className="space-y-3">
                       <div>

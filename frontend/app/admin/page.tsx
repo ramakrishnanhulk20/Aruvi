@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getContractConfig } from "@/lib/contracts";
-import type { MerchantRegistration } from "../api/merchant/register/route";
+import type { MerchantRegistration } from "@/types/donation";
 
 export default function AdminPage() {
   const { address, isConnected } = useAccount();

@@ -41,6 +41,7 @@ import { formatTokenAmount, formatAddress, parseAmount } from "@/lib/utils";
 import { CONTRACTS } from "@/lib/contracts";
 import { trackEvent } from "@/lib/monitoring";
 import { CONFIDENTIAL_TOKENS, getDefaultToken, type ConfidentialToken } from "@/lib/tokenRegistry";
+import { ProductType } from "@/hooks/useProductRegistry";
 
 const checkoutSteps = [
   { label: "Connect", description: "Connect your wallet" },
@@ -579,7 +580,7 @@ export default function CheckoutPage() {
                       {merchantAddress && merchantAddress !== "0x0000000000000000000000000000000000000000" && (
                         <ProductSelector
                           merchantAddress={merchantAddress}
-                          productType={paymentType === PaymentType.SUBSCRIPTION ? PaymentType.SUBSCRIPTION : PaymentType.PRODUCT}
+                          productType={paymentType as unknown as ProductType}
                           selectedProductId={selectedProduct?.id ?? null}
                           onSelect={handleProductSelect}
                         />

@@ -7,17 +7,15 @@ const protectedRoutes = ["/dashboard"];
 // Routes that require NO authentication (redirect if logged in)
 const authRoutes = ["/login"];
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // Check for JWT token in cookies
   const token = request.cookies.get("aruvi_jwt")?.value;
   const isAuthenticated = !!token;
 
   // Check if accessing protected route
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
+  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
   // Check if accessing auth route
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
@@ -39,14 +37,12 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - api routes
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico
-     * - public files
-     */
+    // Match all request paths except:
+    // - api routes
+    // - _next/static (static files)
+    // - _next/image (image optimization files)
+    // - favicon.ico
+    // - public files
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next).*)",
   ],
 };

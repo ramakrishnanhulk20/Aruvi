@@ -32,11 +32,29 @@ interface RelayerInstance {
     userAddress: string
   ) => EncryptedInputBuilder;
   userDecrypt: (
-    handles: { handle: string; contractAddress: string }[],
-    signature: string
-  ) => Promise<bigint[]>;
+    handleContractPairs: { handle: string; contractAddress: string }[],
+    privateKey: string,
+    publicKey: string,
+    signature: string,
+    contractAddresses: string[],
+    address: string,
+    startTimestamp: string,
+    durationDays: string
+  ) => Promise<Record<string, bigint>>;
   getPublicKey: () => { publicKey: string; publicParams: string };
   getPublicParams: (size: number) => unknown;
+  generateKeypair: () => { publicKey: string; privateKey: string };
+  createEIP712: (
+    publicKey: string,
+    contractAddresses: string[],
+    startTimestamp: string,
+    durationDays: string
+  ) => {
+    domain: any;
+    types: { UserDecryptRequestVerification: any };
+    message: any;
+  };
+  publicDecrypt: (handles: string[]) => Promise<{ clearValues: Record<string, bigint> }>;
 }
 
 interface EncryptedInputBuilder {

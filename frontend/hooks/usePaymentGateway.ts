@@ -197,6 +197,7 @@ export function useMerchantOperations() {
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync, isPending } = useWriteContract();
+  const GATEWAY_ADDRESS = CONTRACTS.GATEWAY as `0x${string}`;
 
   // Get payment details
   const getPayment = useCallback(

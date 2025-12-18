@@ -1,38 +1,51 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Turbopack config (Next.js 16+ default) - empty object to acknowledge turbopack
-  turbopack: {},
-  // Webpack fallback for non-Turbopack builds
-  webpack: (config) => {
-    config.resolve.fallback = { fs: false, net: false, tls: false };
+
+  // Webpack configuration
+  webpack: (config, { isServer }) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false, 
+      net: false, 
+      tls: false 
+    };
+
+    // Web-only build of MetaMask SDK expects async-storage; provide a shim.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@react-native-async-storage/async-storage': path.resolve(
+        __dirname,
+        'lib/asyncStorageShim'
+      ),
+    };
+
+    // Keep native FHE dependencies external so their accompanying WASM files
+    // (e.g. tfhe_bg.wasm from node-tfhe) are loaded from node_modules at
+    // runtime instead of being bundled without the asset.
+    if (isServer) {
+      config.externals.push("node-tfhe", "node-tkms");
+    }
+
     config.externals.push("pino-pretty", "lokijs", "encoding");
+
     return config;
   },
 };
 
 // Sentry configuration options
 const sentryOptions = {
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options
-
-  // Suppresses source map uploading logs during build
   silent: true,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-
-  // Upload source maps only in production
   widenClientFileUpload: true,
-  
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-
-  // Hides source maps from generated client bundles
   hideSourceMaps: true,
-
-  // Automatically annotate React components to show their name in breadcrumbs
   reactComponentAnnotation: {
     enabled: true,
   },

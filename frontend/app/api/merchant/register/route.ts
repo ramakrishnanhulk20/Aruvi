@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleCors, setCorsHeaders } from "@/lib/cors";
 import { apiRateLimit } from "@/lib/rateLimit";
+import { MerchantRegistration } from "@/types/donation";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -36,21 +37,6 @@ function saveRegistrations(registrations: Map<string, MerchantRegistration>): vo
   } catch (error) {
     console.error("Error saving registrations:", error);
   }
-}
-
-export interface MerchantRegistration {
-  id: string;
-  walletAddress: string;
-  businessName: string;
-  businessType?: string;
-  website?: string;
-  email: string;
-  description?: string;
-  status: "pending" | "approved" | "rejected";
-  timestamp: number;
-  approvedBy?: string;
-  approvedAt?: number;
-  rejectionReason?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -207,7 +193,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper to get all registrations (for admin dashboard)
-export function getAllRegistrations(): MerchantRegistration[] {
+function getAllRegistrations(): MerchantRegistration[] {
   const registrationRequests = loadRegistrations();
   return Array.from(registrationRequests.values());
 }
