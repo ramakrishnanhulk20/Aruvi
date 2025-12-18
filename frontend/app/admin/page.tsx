@@ -17,7 +17,21 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getContractConfig } from "@/lib/contracts";
-import type { MerchantRegistration } from "@/types/donation";
+
+interface MerchantRegistration {
+  id: string;
+  walletAddress: string;
+  businessName: string;
+  businessType?: string;
+  website?: string;
+  email: string;
+  description?: string;
+  status: "pending" | "approved" | "rejected";
+  timestamp: number;
+  approvedBy?: string;
+  approvedAt?: number;
+  rejectionReason?: string;
+}
 
 export default function AdminPage() {
   const { address, isConnected } = useAccount();
