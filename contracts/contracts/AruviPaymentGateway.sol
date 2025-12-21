@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BSD-3-Clause
 pragma solidity ^0.8.24;
 
 import "@fhevm/solidity/lib/FHE.sol";
@@ -6,60 +6,58 @@ import { ZamaEthereumConfig } from "@fhevm/solidity/config/ZamaConfig.sol";
 import { IERC7984 } from "@openzeppelin/confidential-contracts/interfaces/IERC7984.sol";
 
 /// @title AruviPaymentGateway - Privacy-First Payment Gateway
-/// @notice Maximum privacy using FHE
 /// @dev Aruvi (அருவி) means "waterfall" in Tamil - privacy flows freely
-///
 
 contract AruviPaymentGateway is ZamaEthereumConfig {
     address public owner;
     address public defaultToken; // cUSDC wrapper
     
     // Overflow protection constant
-    uint64 private constant MAX_SAFE_TOTAL = type(uint64).max - 1e12; // Reserve buffer
+    uint64 private constant MAX_SAFE_TOTAL = type(uint64).max - 1e12;
     
-    // ============ CORE PAYMENT STORAGE ============
+    // Payment storage
     
     struct Payment {
-        address sender;         // Who sent (needed for refunds)
-        address recipient;      // Who received
-        address token;          // Which confidential token
-        euint64 amount;         // Encrypted amount
-        uint256 timestamp;      // When it happened
+        address sender;
+        address recipient;
+        address token;
+        euint64 amount;
+        uint256 timestamp;
     }
     
     mapping(bytes32 => Payment) private payments;
     mapping(bytes32 => bool) public refunded;
     
-    // ============ REQUEST MONEY ============
+    // Request storage
     
     struct PaymentRequest {
-        address requester;      // Who wants money
-        address token;          // Which token they want
-        euint64 amount;         // Encrypted requested amount (0 = any amount)
-        uint256 createdAt;      // When request was created
-        uint256 expiresAt;      // When request expires (0 = never)
-        bool fulfilled;         // Has it been paid?
-        bytes32 paymentId;      // Link to payment if fulfilled
+        address requester;
+        address token;
+        euint64 amount;
+        uint256 createdAt;
+        uint256 expiresAt;
+        bool fulfilled;
+        bytes32 paymentId;
     }
     
     mapping(bytes32 => PaymentRequest) private requests;
     
-    // ============ RECURRING PAYMENTS (Subscriptions) ============
+    // Subscription storage
     
     struct Subscription {
-        address subscriber;     // Who pays
-        address recipient;      // Who receives
-        address token;          // Which token
-        euint64 amount;         // Encrypted recurring amount
-        uint256 interval;       // Seconds between payments (e.g., 30 days)
-        uint256 nextPayment;    // Timestamp of next allowed payment
-        uint256 createdAt;      // When subscription started
-        bool active;            // Is subscription active?
+        address subscriber;
+        address recipient;
+        address token;
+        euint64 amount;
+        uint256 interval;
+        uint256 nextPayment;
+        uint256 createdAt;
+        bool active;
     }
     
     mapping(bytes32 => Subscription) private subscriptions;
     
-    // ============ USER TOTALS (Encrypted) ============
+    // User totals (encrypted)
     
     mapping(address => euint64) private sentTotals;
     mapping(address => euint64) private receivedTotals;
@@ -67,7 +65,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
     mapping(address => uint256) public requestCount;
     mapping(address => uint256) public subscriptionCount;
     
-    // ============ EVENTS (Minimal - No Metadata) ============
+    // Events
     
     event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to);
     event PaymentRefunded(bytes32 indexed paymentId);
@@ -91,9 +89,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         emit OwnershipTransferred(address(0), msg.sender);
     }
     
-    // ============================================================
-    //                    SEND MONEY (Core P2P)
-    // ============================================================
+    // Send payment
     
     /// @notice Send encrypted payment to anyone
     /// @param recipient Address to receive funds
@@ -146,32 +142,19 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         require(recipient != sender, "Cannot send to self");
         require(token != address(0), "Invalid token");
         
-        // TWO-STEP FHE PATTERN (per Zama guidance + OpenZeppelin patterns):
-        // Step 1: Gateway calls FHE.fromExternal() - verifies proof with userAddress=msg.sender
-        // Step 2: Allow the TOKEN contract to use the ciphertext
-        // Step 3: Use the verified euint64 handle for transfer
-        //
-        // CRITICAL: The token contract needs ACL access to operate on the ciphertext internally!
-        // See OpenZeppelin SwapERC7984ToERC7984 pattern
         euint64 amount = FHE.fromExternal(encryptedAmount, proof);
         
-        // Allow BOTH Gateway and Token to access the ciphertext
-        FHE.allowThis(amount);                          // Gateway needs access
-        FHE.allowTransient(amount, address(token));     // Token needs access for internal FHE ops
+        FHE.allowThis(amount);
+        FHE.allowTransient(amount, address(token));
         
-        // Transfer using verified handle
         euint64 transferred = IERC7984(token).confidentialTransferFrom(
             sender, 
             recipient, 
             amount
         );
         FHE.allowThis(transferred);
-        FHE.allowTransient(transferred, address(token));  // Token may need this too
+        FHE.allowTransient(transferred, address(token));
         
-        // SECURITY: Check for silent failure (transferred could be 0 if insufficient balance)
-        // We use the ACTUAL transferred amount, not the requested amount
-        // This ensures payment record reflects reality, not intent
-        // The ebool check allows us to conditionally store only valid payments
         ebool hasTransferred = FHE.gt(transferred, FHE.asEuint64(0));
         
         // Generate payment ID
@@ -183,9 +166,6 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
             paymentCount[sender]++
         ));
         
-        // Store payment record with actual transferred amount
-        // If transferred == 0 (silent failure), payment still recorded but amount is 0
-        // Frontend should check balance changes to confirm success
         payments[paymentId] = Payment({
             sender: sender,
             recipient: recipient,
@@ -194,12 +174,9 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
             timestamp: block.timestamp
         });
         
-        // Allow parties to decrypt (they'll see 0 if failed)
         FHE.allow(transferred, sender);
         FHE.allow(transferred, recipient);
         
-        // SECURITY: Only update totals if transfer actually happened
-        // Use FHE.select to conditionally add based on hasTransferred
         euint64 zeroAmount = FHE.asEuint64(0);
         euint64 amountToAdd = FHE.select(hasTransferred, transferred, zeroAmount);
         _addToSentTotal(sender, amountToAdd);
@@ -208,9 +185,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         emit PaymentSent(paymentId, sender, recipient);
     }
     
-    // ============================================================
-    //                    REQUEST MONEY
-    // ============================================================
+    // Request money
     
     /// @notice Create a payment request (like PayPal's "Request Money")
     /// @param encryptedAmount Encrypted amount to request (use 0 for "any amount")
@@ -299,9 +274,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         emit RequestCancelled(requestId);
     }
     
-    // ============================================================
-    //                    RECURRING PAYMENTS (Subscriptions)
-    // ============================================================
+    // Subscriptions
     
     /// @notice Create a subscription (recurring payment authorization)
     /// @param recipient Who will receive payments
@@ -353,7 +326,6 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         require(block.timestamp >= sub.nextPayment, "Too early");
         require(msg.sender == sub.subscriber || msg.sender == sub.recipient, "Not authorized");
         
-        // Transfer using stored encrypted amount
         FHE.allowTransient(sub.amount, sub.token);
         euint64 transferred = IERC7984(sub.token).confidentialTransferFrom(
             sub.subscriber, 
@@ -362,7 +334,6 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         );
         FHE.allowThis(transferred);
         
-        // SECURITY: Check for silent failure
         ebool hasTransferred = FHE.gt(transferred, FHE.asEuint64(0));
         
         // Generate payment ID
@@ -373,7 +344,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
             block.number
         ));
         
-        // Store payment with actual transferred amount
+
         payments[paymentId] = Payment({
             sender: sub.subscriber,
             recipient: sub.recipient,
@@ -385,13 +356,11 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         FHE.allow(transferred, sub.subscriber);
         FHE.allow(transferred, sub.recipient);
         
-        // SECURITY: Only update totals if transfer succeeded
         euint64 zeroAmount = FHE.asEuint64(0);
         euint64 amountToAdd = FHE.select(hasTransferred, transferred, zeroAmount);
         _addToSentTotal(sub.subscriber, amountToAdd);
         _addToReceivedTotal(sub.recipient, amountToAdd);
         
-        // Schedule next payment
         sub.nextPayment = block.timestamp + sub.interval;
         
         emit SubscriptionPaid(subscriptionId, paymentId);
@@ -407,9 +376,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         emit SubscriptionCancelled(subscriptionId);
     }
     
-    // ============================================================
-    //                    REFUNDS
-    // ============================================================
+    // Refunds
     
     /// @notice Refund a payment (only recipient can refund)
     /// @param paymentId The payment to refund
@@ -432,9 +399,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         emit PaymentRefunded(paymentId);
     }
     
-    // ============================================================
-    //                    VIEW FUNCTIONS
-    // ============================================================
+    // View functions
     
     /// @notice Get your encrypted sent total (only you can decrypt)
     function getMySentTotal() external view returns (euint64) {
@@ -482,9 +447,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         return (s.subscriber, s.recipient, s.interval, s.nextPayment, s.active);
     }
     
-    // ============================================================
-    //                    INTERNAL HELPERS
-    // ============================================================
+    // Internal helpers
     
     /// @dev Add to sent total with overflow protection (OZ Security Guide #1)
     function _addToSentTotal(address user, euint64 delta) internal {
@@ -493,8 +456,6 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         if (euint64.unwrap(current) == bytes32(0)) {
             newTotal = delta;
         } else {
-            // SECURITY: Overflow protection using FHE.select
-            // If current > MAX_SAFE_TOTAL, cap at MAX_SAFE_TOTAL to prevent wrap
             euint64 maxSafe = FHE.asEuint64(MAX_SAFE_TOTAL);
             ebool wouldOverflow = FHE.gt(current, FHE.sub(maxSafe, delta));
             euint64 uncappedTotal = FHE.add(current, delta);
@@ -505,14 +466,12 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         FHE.allow(newTotal, user);
     }
     
-    /// @dev Add to received total with overflow protection (OZ Security Guide #1)
     function _addToReceivedTotal(address user, euint64 delta) internal {
         euint64 current = receivedTotals[user];
         euint64 newTotal;
         if (euint64.unwrap(current) == bytes32(0)) {
             newTotal = delta;
         } else {
-            // SECURITY: Overflow protection using FHE.select
             euint64 maxSafe = FHE.asEuint64(MAX_SAFE_TOTAL);
             ebool wouldOverflow = FHE.gt(current, FHE.sub(maxSafe, delta));
             euint64 uncappedTotal = FHE.add(current, delta);
@@ -523,9 +482,7 @@ contract AruviPaymentGateway is ZamaEthereumConfig {
         FHE.allow(newTotal, user);
     }
     
-    // ============================================================
-    //                    ADMIN
-    // ============================================================
+    // Admin
     
     function setDefaultToken(address _token) external onlyOwner {
         require(_token != address(0), "Invalid token");
