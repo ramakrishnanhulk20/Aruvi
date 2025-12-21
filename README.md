@@ -67,114 +67,115 @@ Unlike traditional blockchain payments where anyone can view your transaction hi
 
 ### High-Level Overview
 
-```mermaid
-graph TB
-    subgraph "User Layer"
-        U1[👤 Sender]
-        U2[👤 Recipient]
-        W[🦊 Wallet]
-    end
-    
-    subgraph "Frontend"
-        APP[⚛️ React App]
-        SDK[@aruvi/sdk]
-    end
-    
-    subgraph "Smart Contracts"
-        GW[AruviPaymentGateway]
-        WR[ConfidentialUSDCWrapper]
-    end
-    
-    subgraph "External"
-        USDC[💵 Circle USDC]
-        FHE[🔐 Zama fhEVM]
-    end
-    
-    U1 --> W --> APP
-    U2 --> W --> APP
-    APP --> SDK --> GW
-    GW --> WR
-    WR --> USDC
-    GW --> FHE
-    WR --> FHE
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER LAYER                                │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │   Sender     │    │   Recipient  │    │   Wallet     │       │
+│  │   👤         │    │   👤         │    │   🦊         │       │
+│  └──────────────┘    └──────────────┘    └──────────────┘       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       FRONTEND LAYER                             │
+│  ┌──────────────────────┐    ┌──────────────────────┐           │
+│  │    React App ⚛️      │    │    @aruvi/sdk 📦     │           │
+│  └──────────────────────┘    └──────────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     SMART CONTRACTS                              │
+│  ┌──────────────────────┐    ┌──────────────────────┐           │
+│  │ AruviPaymentGateway  │───▶│ ConfidentialWrapper  │           │
+│  └──────────────────────┘    └──────────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     EXTERNAL SERVICES                            │
+│  ┌──────────────────────┐    ┌──────────────────────┐           │
+│  │   Circle USDC 💵     │    │   Zama fhEVM 🔐      │           │
+│  └──────────────────────┘    └──────────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Payment Flow
 
-```mermaid
-sequenceDiagram
-    participant S as Sender
-    participant W as Wallet
-    participant G as Gateway
-    participant T as cUSDC Token
-    participant F as fhEVM
-    
-    Note over S,F: Wrapping Phase (one-time)
-    S->>W: Approve USDC spend
-    S->>T: wrap(amount)
-    T->>F: Create encrypted balance
-    
-    Note over S,F: Payment Phase
-    S->>F: Encrypt amount locally
-    S->>W: Sign transaction
-    W->>G: send(recipient, encryptedAmount, proof)
-    G->>F: Verify encryption proof
-    G->>T: confidentialTransferFrom()
-    T->>F: Homomorphic subtraction (sender)
-    T->>F: Homomorphic addition (recipient)
-    G-->>S: PaymentSent event
+```
+WRAPPING PHASE (one-time)
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Sender ──▶ Approve USDC spend
+       ──▶ wrap(amount)
+       ──▶ fhEVM creates encrypted balance
+
+PAYMENT PHASE
+━━━━━━━━━━━━━
+Sender ──▶ Encrypt amount locally (fhEVM)
+       ──▶ Sign transaction (Wallet)
+       ──▶ send(recipient, encryptedAmount, proof)
+              │
+              ▼
+       Gateway verifies proof
+       Gateway calls confidentialTransferFrom()
+              │
+              ▼
+       fhEVM: Homomorphic subtraction (sender balance)
+       fhEVM: Homomorphic addition (recipient balance)
+              │
+              ▼
+       PaymentSent event emitted
 ```
 
 ### Contract Architecture
 
-```mermaid
-graph LR
-    subgraph "Aruvi Protocol"
-        GW[AruviPaymentGateway<br/>━━━━━━━━━━━━━<br/>• send()<br/>• multiSend()<br/>• createRequest()<br/>• fulfillRequest()<br/>• createSubscription()<br/>• executeSubscription()<br/>• refund()]
-        
-        WR[ConfidentialUSDCWrapper<br/>━━━━━━━━━━━━━<br/>• wrap()<br/>• unwrap()<br/>• confidentialTransfer()<br/>• confidentialBalanceOf()]
-    end
-    
-    subgraph "External Dependencies"
-        USDC[Circle USDC<br/>ERC-20]
-        OZ[OpenZeppelin<br/>ERC7984]
-        ZAMA[Zama<br/>fhEVM]
-    end
-    
-    GW -->|uses| WR
-    WR -->|wraps| USDC
-    WR -->|extends| OZ
-    WR -->|encryption| ZAMA
-    GW -->|encryption| ZAMA
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     ARUVI PROTOCOL                               │
+│                                                                  │
+│  ┌────────────────────────────┐  ┌────────────────────────────┐ │
+│  │   AruviPaymentGateway      │  │  ConfidentialUSDCWrapper   │ │
+│  │   ─────────────────────    │  │  ──────────────────────    │ │
+│  │   • send()                 │  │  • wrap()                  │ │
+│  │   • multiSend()            │──▶│  • unwrap()                │ │
+│  │   • createRequest()        │  │  • confidentialTransfer()  │ │
+│  │   • fulfillRequest()       │  │  • confidentialBalanceOf() │ │
+│  │   • createSubscription()   │  │                            │ │
+│  │   • executeSubscription()  │  └────────────────────────────┘ │
+│  │   • refund()               │              │                  │
+│  └────────────────────────────┘              │                  │
+│              │                               │                  │
+└──────────────│───────────────────────────────│──────────────────┘
+               │                               │
+               ▼                               ▼
+┌──────────────────────────┐    ┌──────────────────────────┐
+│      Zama fhEVM 🔐       │    │     Circle USDC 💵       │
+│   Encryption/Decryption  │    │       ERC-20             │
+└──────────────────────────┘    └──────────────────────────┘
 ```
 
-### Data Flow
+### Data Privacy Model
 
-```mermaid
-flowchart LR
-    subgraph "Public Data"
-        A1[Sender Address]
-        A2[Recipient Address]
-        A3[Timestamp]
-        A4[Payment ID]
-    end
-    
-    subgraph "Encrypted Data"
-        E1[🔒 Amount]
-        E2[🔒 Balance]
-        E3[🔒 Totals]
-    end
-    
-    subgraph "Access Control"
-        AC1[Sender can decrypt]
-        AC2[Recipient can decrypt]
-        AC3[Contract can compute]
-    end
-    
-    E1 --> AC1
-    E1 --> AC2
-    E2 --> AC1
-    E3 --> AC1
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        DATA VISIBILITY                           │
+│                                                                  │
+│   PUBLIC (on-chain)           │   ENCRYPTED (FHE)               │
+│   ─────────────────           │   ───────────────               │
+│   • Sender Address            │   • 🔒 Amount                   │
+│   • Recipient Address         │   • 🔒 Balance                  │
+│   • Timestamp                 │   • 🔒 Running Totals           │
+│   • Payment ID                │                                 │
+│   • Transaction Hash          │                                 │
+│                               │                                 │
+│   ACCESS CONTROL:             │                                 │
+│   ─────────────────           │                                 │
+│   ✓ Sender can decrypt        │                                 │
+│   ✓ Recipient can decrypt     │                                 │
+│   ✓ Contract computes on      │                                 │
+│     ciphertext (no decrypt)   │                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -224,6 +225,16 @@ event SubscriptionCancelled(bytes32 indexed subscriptionId);
 
 ---
 
+## Testnet Deployment
+
+| Contract | Address | Network |
+|----------|---------|---------|
+| AruviPaymentGateway | `0x05798f2304A5B9263243C8002c87D4f59546958D` | Sepolia |
+| ConfidentialUSDCWrapper | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` | Sepolia |
+| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` | Sepolia |
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -238,8 +249,8 @@ event SubscriptionCancelled(bytes32 indexed subscriptionId);
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/aruvi.git
-cd aruvi
+git clone https://github.com/ramakrishnanhulk20/Aruvi.git
+cd Aruvi
 
 # Install contract dependencies
 cd contracts
@@ -343,7 +354,7 @@ npx hardhat deploy --network sepolia
 ## Project Structure
 
 ```
-aruvi/
+Aruvi/
 ├── contracts/              # Solidity smart contracts
 │   ├── contracts/
 │   │   ├── AruviPaymentGateway.sol
@@ -397,16 +408,6 @@ aruvi/
 
 ---
 
-## Testnet Deployment
-
-| Contract | Address | Network |
-|----------|---------|---------|
-| AruviPaymentGateway | `0x...` | Sepolia |
-| ConfidentialUSDCWrapper | `0x...` | Sepolia |
-| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` | Sepolia |
-
----
-
 ## Tech Stack
 
 | Layer | Technology |
@@ -434,7 +435,7 @@ Contributions welcome! Please read our contributing guidelines before submitting
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+BSD-3-Clause License — see [LICENSE](LICENSE) for details.
 
 ---
 
@@ -447,5 +448,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  Built with 🔐 by the Aruvi Team
+  Built with 🔐 by Ram
 </p>
