@@ -1,0 +1,219 @@
+/**
+ * Aruvi SDK Styles
+ * Optional - these styles are automatically injected by the SDK
+ * Import this file only if you need to customize the styles
+ */
+
+/* Button Base Styles */
+.aruvi-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-decoration: none;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Button Sizes */
+.aruvi-button--small {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.aruvi-button--medium {
+  height: 44px;
+  padding: 0 24px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+.aruvi-button--large {
+  height: 52px;
+  padding: 0 32px;
+  font-size: 16px;
+  border-radius: 12px;
+}
+
+/* Button Variants */
+.aruvi-button--primary {
+  background: linear-gradient(135deg, #0070ba 0%, #003087 100%);
+  color: #ffffff;
+}
+
+.aruvi-button--primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.aruvi-button--secondary {
+  background: #f5f7fa;
+  color: #003087;
+}
+
+.aruvi-button--secondary:hover {
+  background: #e8ecf2;
+}
+
+.aruvi-button--outline {
+  background: transparent;
+  color: #0070ba;
+  border: 2px solid #0070ba;
+}
+
+.aruvi-button--outline:hover {
+  background: rgba(0, 112, 186, 0.08);
+}
+
+.aruvi-button--dark {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+.aruvi-button--dark:hover {
+  background: #2a2a2a;
+}
+
+/* Button States */
+.aruvi-button:disabled,
+.aruvi-button--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Spinner Animation */
+@keyframes aruvi-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.aruvi-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: aruvi-spin 1s linear infinite;
+}
+
+/* Modal Overlay */
+.aruvi-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  animation: aruvi-fade-in 0.2s ease;
+}
+
+.aruvi-modal-container {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: aruvi-slide-up 0.3s ease;
+  position: relative;
+}
+
+.aruvi-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #0070ba 0%, #003087 100%);
+  color: white;
+}
+
+.aruvi-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aruvi-modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: background 0.2s;
+}
+
+.aruvi-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.aruvi-modal-content {
+  padding: 0;
+}
+
+.aruvi-modal-iframe {
+  width: 100%;
+  height: 500px;
+  border: none;
+}
+
+.aruvi-modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 16px;
+  color: #6b7280;
+}
+
+/* Animations */
+@keyframes aruvi-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes aruvi-slide-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px) scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .aruvi-modal-container {
+    max-width: 100%;
+    max-height: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+  
+  .aruvi-modal-iframe {
+    height: calc(100vh - 60px);
+  }
+}

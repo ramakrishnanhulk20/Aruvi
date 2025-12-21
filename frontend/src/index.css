@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* ============================================
+   ARUVI - PayPal Clone Design System
+   ============================================ */
+
+/* Custom CSS Variables */
+:root {
+  /* Primary Colors (PayPal Blue) */
+  --color-primary: #003087;
+  --color-primary-light: #0070BA;
+  --color-primary-dark: #001F5C;
+  --color-primary-hover: #001F5C;
+
+  /* Backgrounds */
+  --color-bg-white: #FFFFFF;
+  --color-bg-light: #F5F7FA;
+  --color-bg-dark: #001435;
+
+  /* Text */
+  --color-text-primary: #2C2E2F;
+  --color-text-secondary: #687173;
+  --color-text-on-dark: #FFFFFF;
+
+  /* Status Colors */
+  --color-success: #019267;
+  --color-warning: #FF9600;
+  --color-error: #D20000;
+
+  /* Borders */
+  --color-border-light: #CBD2D6;
+  --color-border-input: #B7BCBF;
+}
+
+/* Base Styles */
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-white);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Links */
+a {
+  color: var(--color-primary-light);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-primary);
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scroll snapping for horizontal carousels */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+}
+
+.scroll-snap-center {
+  scroll-snap-align: center;
+}
+
+/* Custom Theme Colors for Tailwind */
+@theme {
+  /* PayPal Blue Colors */
+  --color-paypal-blue: #003087;
+  --color-paypal-light: #0070BA;
+  --color-paypal-dark: #001F5C;
+  --color-paypal-navy: #001435;
+
+  /* Status */
+  --color-success: #019267;
+  --color-warning: #FF9600;
+  --color-error: #D20000;
+
+  /* Gray scale */
+  --color-gray-50: #F5F7FA;
+  --color-gray-100: #EBEEF1;
+  --color-gray-200: #CBD2D6;
+  --color-gray-300: #B7BCBF;
+  --color-gray-400: #9CA3A7;
+  --color-gray-500: #687173;
+  --color-gray-600: #545B5E;
+  --color-gray-700: #3D4244;
+  --color-gray-800: #2C2E2F;
+  --color-gray-900: #1A1C1D;
+}

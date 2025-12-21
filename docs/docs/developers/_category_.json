@@ -1,0 +1,8 @@
+{
+  "label": "Developers & Integration",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "description": "Integrate Aruvi payments into your website or application. Accept private payments with just a few lines of code."
+  }
+}

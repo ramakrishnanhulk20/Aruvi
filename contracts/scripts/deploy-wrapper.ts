@@ -5,7 +5,7 @@ async function main() {
   const [deployer] = await hre.ethers.getSigners();
   console.log("Deploying ConfidentialUSDCWrapper with account:", deployer.address);
 
-  const underlyingToken = "0xC392ceE2b731A6a719BAd5205B9Cb44F346F012a"; // New XUSD
+  const underlyingToken = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // Circle USDC on Sepolia
   const name = "Confidential USDC";
   const symbol = "cUSDC";
   const uri = "";
