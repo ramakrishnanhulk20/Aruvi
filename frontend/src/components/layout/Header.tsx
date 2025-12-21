@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Mega menu data structure
-const DOCS_URL = import.meta.env.VITE_DOCS_URL || 'http://localhost:3000';
+const DOCS_URL = import.meta.env.VITE_DOCS_URL || 'https://aruvi-documentation.vercel.app';
 
 const megaMenus = {
   personal: {
