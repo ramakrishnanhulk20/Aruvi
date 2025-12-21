@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/static/img/logo.svg" alt="Aruvi Logo" width="120" height="120" />
+  <img src="frontend/public/Aruvi%20logo.png" alt="Aruvi Logo" width="120" height="120" />
 </p>
 
 <h1 align="center">Aruvi</h1>
@@ -67,115 +67,160 @@ Unlike traditional blockchain payments where anyone can view your transaction hi
 
 ### High-Level Overview
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        USER LAYER                                │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │   Sender     │    │   Recipient  │    │   Wallet     │       │
-│  │   👤         │    │   👤         │    │   🦊         │       │
-│  └──────────────┘    └──────────────┘    └──────────────┘       │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       FRONTEND LAYER                             │
-│  ┌──────────────────────┐    ┌──────────────────────┐           │
-│  │    React App ⚛️      │    │    @aruvi/sdk 📦     │           │
-│  └──────────────────────┘    └──────────────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     SMART CONTRACTS                              │
-│  ┌──────────────────────┐    ┌──────────────────────┐           │
-│  │ AruviPaymentGateway  │───▶│ ConfidentialWrapper  │           │
-│  └──────────────────────┘    └──────────────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     EXTERNAL SERVICES                            │
-│  ┌──────────────────────┐    ┌──────────────────────┐           │
-│  │   Circle USDC 💵     │    │   Zama fhEVM 🔐      │           │
-│  └──────────────────────┘    └──────────────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Users
+        S[Sender]
+        R[Recipient]
+        W[Wallet]
+    end
+    
+    subgraph Frontend
+        APP[React App]
+        SDK[Aruvi SDK]
+    end
+    
+    subgraph Contracts
+        GW[AruviPaymentGateway]
+        WR[ConfidentialUSDCWrapper]
+    end
+    
+    subgraph External
+        USDC[Circle USDC]
+        FHE[Zama fhEVM]
+    end
+    
+    S --> W
+    R --> W
+    W --> APP
+    APP --> SDK
+    SDK --> GW
+    GW --> WR
+    WR --> USDC
+    GW --> FHE
+    WR --> FHE
 ```
 
 ### Payment Flow
 
-```
-WRAPPING PHASE (one-time)
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Sender ──▶ Approve USDC spend
-       ──▶ wrap(amount)
-       ──▶ fhEVM creates encrypted balance
-
-PAYMENT PHASE
-━━━━━━━━━━━━━
-Sender ──▶ Encrypt amount locally (fhEVM)
-       ──▶ Sign transaction (Wallet)
-       ──▶ send(recipient, encryptedAmount, proof)
-              │
-              ▼
-       Gateway verifies proof
-       Gateway calls confidentialTransferFrom()
-              │
-              ▼
-       fhEVM: Homomorphic subtraction (sender balance)
-       fhEVM: Homomorphic addition (recipient balance)
-              │
-              ▼
-       PaymentSent event emitted
+```mermaid
+sequenceDiagram
+    participant S as Sender
+    participant W as Wallet
+    participant G as Gateway
+    participant T as cUSDC Token
+    participant F as fhEVM
+    
+    Note over S,F: Wrapping Phase
+    S->>W: Approve USDC spend
+    S->>T: wrap amount
+    T->>F: Create encrypted balance
+    
+    Note over S,F: Payment Phase
+    S->>F: Encrypt amount locally
+    S->>W: Sign transaction
+    W->>G: send to recipient
+    G->>F: Verify encryption proof
+    G->>T: confidentialTransferFrom
+    T->>F: Subtract from sender
+    T->>F: Add to recipient
+    G-->>S: PaymentSent event
 ```
 
 ### Contract Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     ARUVI PROTOCOL                               │
-│                                                                  │
-│  ┌────────────────────────────┐  ┌────────────────────────────┐ │
-│  │   AruviPaymentGateway      │  │  ConfidentialUSDCWrapper   │ │
-│  │   ─────────────────────    │  │  ──────────────────────    │ │
-│  │   • send()                 │  │  • wrap()                  │ │
-│  │   • multiSend()            │──▶│  • unwrap()                │ │
-│  │   • createRequest()        │  │  • confidentialTransfer()  │ │
-│  │   • fulfillRequest()       │  │  • confidentialBalanceOf() │ │
-│  │   • createSubscription()   │  │                            │ │
-│  │   • executeSubscription()  │  └────────────────────────────┘ │
-│  │   • refund()               │              │                  │
-│  └────────────────────────────┘              │                  │
-│              │                               │                  │
-└──────────────│───────────────────────────────│──────────────────┘
-               │                               │
-               ▼                               ▼
-┌──────────────────────────┐    ┌──────────────────────────┐
-│      Zama fhEVM 🔐       │    │     Circle USDC 💵       │
-│   Encryption/Decryption  │    │       ERC-20             │
-└──────────────────────────┘    └──────────────────────────┘
+```mermaid
+graph LR
+    subgraph Protocol
+        GW[AruviPaymentGateway]
+        WR[ConfidentialUSDCWrapper]
+    end
+    
+    subgraph Dependencies
+        USDC[Circle USDC]
+        OZ[OpenZeppelin ERC7984]
+        ZAMA[Zama fhEVM]
+    end
+    
+    GW -->|uses| WR
+    WR -->|wraps| USDC
+    WR -->|extends| OZ
+    WR -->|encryption| ZAMA
+    GW -->|encryption| ZAMA
 ```
 
-### Data Privacy Model
+### Data Flow
 
+```mermaid
+flowchart LR
+    subgraph Public
+        A1[Sender Address]
+        A2[Recipient Address]
+        A3[Timestamp]
+        A4[Payment ID]
+    end
+    
+    subgraph Encrypted
+        E1[Amount]
+        E2[Balance]
+        E3[Totals]
+    end
+    
+    subgraph Access
+        AC1[Sender decrypts]
+        AC2[Recipient decrypts]
+        AC3[Contract computes]
+    end
+    
+    E1 --> AC1
+    E1 --> AC2
+    E2 --> AC1
+    E3 --> AC3
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        DATA VISIBILITY                           │
-│                                                                  │
-│   PUBLIC (on-chain)           │   ENCRYPTED (FHE)               │
-│   ─────────────────           │   ───────────────               │
-│   • Sender Address            │   • 🔒 Amount                   │
-│   • Recipient Address         │   • 🔒 Balance                  │
-│   • Timestamp                 │   • 🔒 Running Totals           │
-│   • Payment ID                │                                 │
-│   • Transaction Hash          │                                 │
-│                               │                                 │
-│   ACCESS CONTROL:             │                                 │
-│   ─────────────────           │                                 │
-│   ✓ Sender can decrypt        │                                 │
-│   ✓ Recipient can decrypt     │                                 │
-│   ✓ Contract computes on      │                                 │
-│     ciphertext (no decrypt)   │                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+### Gateway Functions
+
+```mermaid
+graph TD
+    GW[AruviPaymentGateway]
+    
+    GW --> P[Payments]
+    GW --> REQ[Requests]
+    GW --> SUB[Subscriptions]
+    GW --> REF[Refunds]
+    
+    P --> P1[send]
+    P --> P2[multiSend]
+    
+    REQ --> R1[createRequest]
+    REQ --> R2[fulfillRequest]
+    REQ --> R3[cancelRequest]
+    
+    SUB --> S1[createSubscription]
+    SUB --> S2[executeSubscription]
+    SUB --> S3[cancelSubscription]
+    
+    REF --> RF1[refund]
+```
+
+### Wrapper Functions
+
+```mermaid
+graph TD
+    WR[ConfidentialUSDCWrapper]
+    
+    WR --> WRAP[Wrapping]
+    WR --> TRANSFER[Transfers]
+    WR --> ACCESS[Access Control]
+    
+    WRAP --> W1[wrap]
+    WRAP --> W2[unwrap]
+    
+    TRANSFER --> T1[confidentialTransfer]
+    TRANSFER --> T2[confidentialTransferFrom]
+    
+    ACCESS --> A1[setOperator]
+    ACCESS --> A2[confidentialBalanceOf]
 ```
 
 ---

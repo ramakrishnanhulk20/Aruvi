@@ -58,7 +58,7 @@ const config: Config = {
       title: 'Aruvi',
       logo: {
         alt: 'Aruvi Logo',
-        src: 'img/logo.svg',
+        src: 'img/aruvi-logo.png',
       },
       items: [
         {
