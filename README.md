@@ -10,12 +10,28 @@
 </p>
 
 <p align="center">
+  <a href="https://aruvi-dapp.vercel.app">🚀 Live App</a> •
+  <a href="https://aruvi-documentation.vercel.app">📚 Documentation</a> •
+  <a href="https://www.npmjs.com/package/@aruvi/sdk">📦 npm</a>
+</p>
+
+<p align="center">
   <a href="#features">Features</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#smart-contracts">Smart Contracts</a> •
-  <a href="#getting-started">Getting Started</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#sdk-integration">SDK Integration</a> •
   <a href="#test-results">Test Results</a>
 </p>
+
+---
+
+## Live Deployments
+
+| Platform | URL |
+|----------|-----|
+| 🚀 **App** | [aruvi-dapp.vercel.app](https://aruvi-dapp.vercel.app) |
+| 📚 **Docs** | [aruvi-documentation.vercel.app](https://aruvi-documentation.vercel.app) |
+| 📦 **SDK** | [npmjs.com/package/@aruvi/sdk](https://www.npmjs.com/package/@aruvi/sdk) |
 
 ---
 
@@ -60,6 +76,16 @@ Unlike traditional blockchain payments where anyone can view your transaction hi
 - JavaScript/TypeScript SDK for business integration
 - React components for checkout flows
 - Server-side payment verification utilities
+
+---
+
+## Testnet Deployment
+
+| Contract | Address | Network |
+|----------|---------|---------|
+| AruviPaymentGateway | `0x05798f2304A5B9263243C8002c87D4f59546958D` | Sepolia |
+| ConfidentialUSDCWrapper | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` | Sepolia |
+| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` | Sepolia |
 
 ---
 
@@ -149,143 +175,13 @@ graph LR
     GW -->|encryption| ZAMA
 ```
 
-### Data Flow
-
-```mermaid
-flowchart LR
-    subgraph Public
-        A1[Sender Address]
-        A2[Recipient Address]
-        A3[Timestamp]
-        A4[Payment ID]
-    end
-    
-    subgraph Encrypted
-        E1[Amount]
-        E2[Balance]
-        E3[Totals]
-    end
-    
-    subgraph Access
-        AC1[Sender decrypts]
-        AC2[Recipient decrypts]
-        AC3[Contract computes]
-    end
-    
-    E1 --> AC1
-    E1 --> AC2
-    E2 --> AC1
-    E3 --> AC3
-```
-
-### Gateway Functions
-
-```mermaid
-graph TD
-    GW[AruviPaymentGateway]
-    
-    GW --> P[Payments]
-    GW --> REQ[Requests]
-    GW --> SUB[Subscriptions]
-    GW --> REF[Refunds]
-    
-    P --> P1[send]
-    P --> P2[multiSend]
-    
-    REQ --> R1[createRequest]
-    REQ --> R2[fulfillRequest]
-    REQ --> R3[cancelRequest]
-    
-    SUB --> S1[createSubscription]
-    SUB --> S2[executeSubscription]
-    SUB --> S3[cancelSubscription]
-    
-    REF --> RF1[refund]
-```
-
-### Wrapper Functions
-
-```mermaid
-graph TD
-    WR[ConfidentialUSDCWrapper]
-    
-    WR --> WRAP[Wrapping]
-    WR --> TRANSFER[Transfers]
-    WR --> ACCESS[Access Control]
-    
-    WRAP --> W1[wrap]
-    WRAP --> W2[unwrap]
-    
-    TRANSFER --> T1[confidentialTransfer]
-    TRANSFER --> T2[confidentialTransferFrom]
-    
-    ACCESS --> A1[setOperator]
-    ACCESS --> A2[confidentialBalanceOf]
-```
-
 ---
 
-## Smart Contracts
-
-### ConfidentialUSDCWrapper
-
-Wraps standard ERC-20 USDC into confidential ERC-7984 tokens.
-
-| Function | Description |
-|----------|-------------|
-| `wrap(to, amount)` | Convert USDC → cUSDC |
-| `unwrap(from, to, amount)` | Convert cUSDC → USDC |
-| `confidentialTransfer(to, encAmount, proof)` | Transfer encrypted tokens |
-| `confidentialBalanceOf(account)` | Get encrypted balance handle |
-| `setOperator(operator, until)` | Authorize spending |
-
-### AruviPaymentGateway
-
-Main payment processor handling all P2P transactions.
-
-| Function | Description |
-|----------|-------------|
-| `send(recipient, encAmount, proof)` | Send encrypted payment |
-| `multiSend(recipients[], amounts[], proofs[])` | Batch send (max 10) |
-| `createRequest(encAmount, proof, expiry)` | Create payment request |
-| `fulfillRequest(requestId, encAmount, proof)` | Pay a request |
-| `cancelRequest(requestId)` | Cancel your request |
-| `createSubscription(recipient, encAmount, proof, interval)` | Setup recurring payment |
-| `executeSubscription(subscriptionId)` | Execute due payment |
-| `cancelSubscription(subscriptionId)` | Stop subscription |
-| `refund(paymentId)` | Refund payment (recipient only) |
-
-### Events
-
-```solidity
-event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to);
-event PaymentRefunded(bytes32 indexed paymentId);
-event RequestCreated(bytes32 indexed requestId, address indexed requester);
-event RequestFulfilled(bytes32 indexed requestId, bytes32 indexed paymentId);
-event RequestCancelled(bytes32 indexed requestId);
-event SubscriptionCreated(bytes32 indexed subscriptionId, address indexed subscriber, address indexed recipient);
-event SubscriptionPaid(bytes32 indexed subscriptionId, bytes32 indexed paymentId);
-event SubscriptionCancelled(bytes32 indexed subscriptionId);
-```
-
----
-
-## Testnet Deployment
-
-| Contract | Address | Network |
-|----------|---------|---------|
-| AruviPaymentGateway | `0x05798f2304A5B9263243C8002c87D4f59546958D` | Sepolia |
-| ConfidentialUSDCWrapper | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` | Sepolia |
-| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` | Sepolia |
-
----
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- Git
 - MetaMask or compatible wallet
 - Sepolia ETH (for gas)
 - Sepolia USDC (for testing)
@@ -298,16 +194,13 @@ git clone https://github.com/ramakrishnanhulk20/Aruvi.git
 cd Aruvi
 
 # Install contract dependencies
-cd contracts
-npm install
+cd contracts && npm install
 
 # Install frontend dependencies
-cd ../frontend
-npm install
+cd ../frontend && npm install
 
 # Install SDK dependencies
-cd ../sdk
-npm install
+cd ../sdk && npm install
 ```
 
 ### Development
@@ -325,15 +218,92 @@ cd ../frontend
 npm run dev
 ```
 
-### Deployment
+---
+
+## SDK Integration
+
+Install the SDK to accept Aruvi payments on your website:
 
 ```bash
-# Deploy to Sepolia
-cd contracts
-cp .env.example .env
-# Edit .env with your keys
-npx hardhat deploy --network sepolia
+npm install @aruvi/sdk
 ```
+
+### React Example
+
+```tsx
+import { AruviProvider, AruviButton } from '@aruvi/sdk/react';
+import '@aruvi/sdk/styles.css';
+
+function App() {
+  return (
+    <AruviProvider
+      config={{
+        merchantAddress: '0xYourWalletAddress',
+        environment: 'testnet',
+      }}
+    >
+      <AruviButton
+        payment={{
+          amount: '25.00',
+          description: 'Premium Plan',
+        }}
+        onSuccess={(result) => {
+          console.log('Payment ID:', result.paymentId);
+        }}
+      />
+    </AruviProvider>
+  );
+}
+```
+
+### Vanilla JavaScript
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@aruvi/sdk@latest/dist/aruvi-sdk.min.js"></script>
+<script>
+  Aruvi.init({
+    merchantAddress: '0xYourWalletAddress',
+    environment: 'testnet',
+  });
+
+  Aruvi.button('#pay-button', {
+    amount: '25.00',
+    description: 'Premium Plan',
+    onSuccess: (result) => console.log('Paid!', result.paymentId),
+  });
+</script>
+```
+
+📖 **Full SDK documentation**: [aruvi-documentation.vercel.app](https://aruvi-documentation.vercel.app)
+
+---
+
+## Smart Contracts
+
+### AruviPaymentGateway
+
+Main payment processor handling all P2P transactions.
+
+| Function | Description |
+|----------|-------------|
+| `send(recipient, encAmount, proof)` | Send encrypted payment |
+| `multiSend(recipients[], amounts[], proofs[])` | Batch send (max 10) |
+| `createRequest(encAmount, proof, expiry)` | Create payment request |
+| `fulfillRequest(requestId, encAmount, proof)` | Pay a request |
+| `createSubscription(recipient, encAmount, proof, interval)` | Setup recurring payment |
+| `executeSubscription(subscriptionId)` | Execute due payment |
+| `refund(paymentId)` | Refund payment (recipient only) |
+
+### ConfidentialUSDCWrapper
+
+Wraps standard ERC-20 USDC into confidential ERC-7984 tokens.
+
+| Function | Description |
+|----------|-------------|
+| `wrap(to, amount)` | Convert USDC → cUSDC |
+| `unwrap(from, to, amount)` | Convert cUSDC → USDC |
+| `confidentialTransfer(to, encAmount, proof)` | Transfer encrypted tokens |
+| `confidentialBalanceOf(account)` | Get encrypted balance handle |
 
 ---
 
@@ -403,53 +373,23 @@ Aruvi/
 ├── contracts/              # Solidity smart contracts
 │   ├── contracts/
 │   │   ├── AruviPaymentGateway.sol
-│   │   ├── ConfidentialUSDCWrapper.sol
-│   │   └── test/MockUSDC.sol
-│   ├── test/
-│   │   └── Aruvi.test.ts
-│   └── hardhat.config.ts
+│   │   └── ConfidentialUSDCWrapper.sol
+│   └── test/Aruvi.test.ts
 │
 ├── frontend/               # React web application
-│   ├── src/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   └── providers/
-│   └── vite.config.ts
+│   └── src/
+│       ├── components/
+│       ├── hooks/
+│       └── pages/
 │
-├── sdk/                    # JavaScript SDK
-│   ├── src/
-│   │   ├── index.ts
-│   │   ├── constants.ts
-│   │   ├── verify.ts
-│   │   └── react.tsx
-│   └── package.json
+├── sdk/                    # @aruvi/sdk npm package
+│   └── src/
+│       ├── index.ts
+│       └── react.tsx
 │
-└── docs/                   # Documentation site
-    ├── docs/
-    └── docusaurus.config.ts
+└── docs/                   # Documentation (Docusaurus)
+    └── docs/
 ```
-
----
-
-## Security Considerations
-
-### FHE Security Model
-
-- Encryption keys managed by Zama's coprocessor
-- Computations performed on ciphertext (no decryption during processing)
-- Only authorized parties can request decryption
-
-### Contract Security
-
-- Overflow protection on encrypted totals
-- Silent failure handling for confidential transfers
-- Owner-only admin functions
-- Refund restricted to payment recipient
-
-### Audits
-
-- [ ] Pending third-party audit
 
 ---
 
@@ -461,20 +401,8 @@ Aruvi/
 | FHE | Zama fhEVM, OpenZeppelin ERC-7984 |
 | Frontend | React 18, TypeScript, Vite |
 | Wallet | wagmi v2, viem, RainbowKit |
-| Styling | Tailwind CSS, Framer Motion |
+| SDK | TypeScript, Rollup |
 | Docs | Docusaurus 3 |
-
----
-
-## Contributing
-
-Contributions welcome! Please read our contributing guidelines before submitting PRs.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ---
 
@@ -493,5 +421,5 @@ BSD-3-Clause License — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  Built with 🔐 by Ram
+  Built with 🔐 by <a href="https://github.com/ramakrishnanhulk20">Ram</a>
 </p>

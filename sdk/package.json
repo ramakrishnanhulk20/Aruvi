@@ -39,11 +39,15 @@
     "checkout",
     "sdk"
   ],
-  "author": "Aruvi Team",
-  "license": "MIT",
+  "author": "Ram (ramakrishnanhulk20)",
+  "license": "BSD-3-Clause",
+  "homepage": "https://aruvi-documentation.vercel.app",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aruvi-project/aruvi-sdk"
+    "url": "https://github.com/ramakrishnanhulk20/Aruvi"
+  },
+  "bugs": {
+    "url": "https://github.com/ramakrishnanhulk20/Aruvi/issues"
   },
   "peerDependencies": {
     "react": ">=17.0.0",

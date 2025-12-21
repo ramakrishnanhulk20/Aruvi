@@ -11,11 +11,11 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://aruvi.dev',
+  url: 'https://aruvi-documentation.vercel.app',
   baseUrl: '/',
 
-  organizationName: 'aruvi',
-  projectName: 'aruvi-docs',
+  organizationName: 'ramakrishnanhulk20',
+  projectName: 'Aruvi',
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -31,7 +31,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/aruvi/docs/tree/main/',
+          editUrl: 'https://github.com/ramakrishnanhulk20/Aruvi/tree/master/docs/',
         },
         blog: {
           showReadingTime: true,
@@ -39,7 +39,7 @@ const config: Config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          editUrl: 'https://github.com/aruvi/docs/tree/main/',
+          editUrl: 'https://github.com/ramakrishnanhulk20/Aruvi/tree/master/docs/',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -79,12 +79,12 @@ const config: Config = {
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/aruvi',
+          href: 'https://github.com/ramakrishnanhulk20/Aruvi',
           label: 'GitHub',
           position: 'right',
         },
         {
-          href: 'https://app.aruvi.dev',
+          href: 'https://aruvi-dapp.vercel.app',
           label: 'Launch App',
           position: 'right',
           className: 'navbar-launch-button',
@@ -141,7 +141,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/aruvi',
+              href: 'https://github.com/ramakrishnanhulk20/Aruvi',
             },
           ],
         },
@@ -159,7 +159,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Aruvi. Built for privacy.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Aruvi. Built with 🔐 by Ram.`,
     },
     prism: {
       theme: prismThemes.github,

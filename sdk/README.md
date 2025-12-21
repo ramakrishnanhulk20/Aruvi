@@ -2,10 +2,17 @@
 
 Official JavaScript SDK for **Aruvi** - Privacy-First Payments powered by Fully Homomorphic Encryption (FHE).
 
-Accept confidential payments on your website with just a few lines of code. Like PayPal, but privacy-preserving.
+Accept confidential payments on your website with just a few lines of code. Transaction amounts are encrypted on-chain - only sender and recipient can see them.
 
 [![npm version](https://badge.fury.io/js/%40aruvi%2Fsdk.svg)](https://www.npmjs.com/package/@aruvi/sdk)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+
+## Links
+
+- 📚 **Documentation**: [aruvi-documentation.vercel.app](https://aruvi-documentation.vercel.app)
+- 🚀 **Live App**: [aruvi-dapp.vercel.app](https://aruvi-dapp.vercel.app)
+- 💻 **GitHub**: [github.com/ramakrishnanhulk20/Aruvi](https://github.com/ramakrishnanhulk20/Aruvi)
+- 📦 **npm**: [npmjs.com/package/@aruvi/sdk](https://www.npmjs.com/package/@aruvi/sdk)
 
 ## Features
 
@@ -20,9 +27,17 @@ Accept confidential payments on your website with just a few lines of code. Like
 
 ```bash
 npm install @aruvi/sdk
-# or
+```
+
+or
+
+```bash
 yarn add @aruvi/sdk
-# or
+```
+
+or
+
+```bash
 pnpm add @aruvi/sdk
 ```
 
@@ -30,6 +45,7 @@ pnpm add @aruvi/sdk
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@aruvi/sdk@latest/dist/aruvi-sdk.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aruvi/sdk@latest/dist/aruvi-sdk.css">
 ```
 
 ## Quick Start
@@ -37,35 +53,45 @@ pnpm add @aruvi/sdk
 ### Vanilla JavaScript
 
 ```html
-<div id="pay-button"></div>
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aruvi/sdk@latest/dist/aruvi-sdk.css">
+</head>
+<body>
+  <div id="pay-button"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@aruvi/sdk@latest/dist/aruvi-sdk.min.js"></script>
-<script>
-  // Initialize
-  Aruvi.init({
-    merchantAddress: '0xYourWalletAddress',
-    environment: 'testnet', // or 'mainnet'
-  });
+  <script src="https://cdn.jsdelivr.net/npm/@aruvi/sdk@latest/dist/aruvi-sdk.min.js"></script>
+  <script>
+    // Initialize Aruvi
+    Aruvi.init({
+      merchantAddress: '0xYourWalletAddress',
+      environment: 'testnet', // 'testnet' for Sepolia, 'mainnet' for production
+    });
 
-  // Create a pay button
-  Aruvi.button('#pay-button', {
-    amount: '25.00',
-    description: 'Premium Plan',
-    onSuccess: (result) => {
-      console.log('Paid!', result.paymentId);
-      // Verify payment on your server
-    },
-    onError: (error) => {
-      console.error('Payment failed:', error.message);
-    },
-  });
-</script>
+    // Create a pay button
+    Aruvi.button('#pay-button', {
+      amount: '25.00',
+      currency: 'USDC',
+      description: 'Premium Plan',
+      onSuccess: (result) => {
+        console.log('Payment successful!', result.paymentId);
+        // Verify payment on your server
+      },
+      onError: (error) => {
+        console.error('Payment failed:', error.message);
+      },
+    });
+  </script>
+</body>
+</html>
 ```
 
 ### React
 
 ```tsx
 import { AruviProvider, AruviButton } from '@aruvi/sdk/react';
+import '@aruvi/sdk/styles.css';
 
 function App() {
   return (
@@ -81,332 +107,155 @@ function App() {
 }
 
 function CheckoutPage() {
+  const handleSuccess = (result) => {
+    console.log('Payment ID:', result.paymentId);
+    console.log('Transaction:', result.txHash);
+    // Send paymentId to your backend for verification
+  };
+
+  const handleError = (error) => {
+    console.error('Payment error:', error.message);
+  };
+
   return (
     <AruviButton
       payment={{
         amount: '99.00',
+        currency: 'USDC',
         description: 'Annual Subscription',
       }}
-      onSuccess={(result) => {
-        console.log('Payment successful!', result);
-      }}
+      onSuccess={handleSuccess}
+      onError={handleError}
       variant="primary"
       size="large"
     />
   );
 }
+
+export default App;
 ```
 
 ## API Reference
 
-### Initialization
+### `Aruvi.init(config)`
+
+Initialize the SDK with your configuration.
 
 ```javascript
 Aruvi.init({
-  merchantAddress: '0x...', // Required: Your wallet address
-  environment: 'testnet',   // 'testnet' or 'mainnet'
-  appUrl: 'https://...',    // Optional: Custom app URL
-  theme: {
-    primaryColor: '#0070ba',
-    borderRadius: 12,
-  },
+  merchantAddress: '0x...', // Your wallet address to receive payments
+  environment: 'testnet',   // 'testnet' (Sepolia) or 'mainnet'
+  theme: 'light',           // 'light' or 'dark' (optional)
 });
 ```
 
-### Creating Buttons
+### `Aruvi.button(selector, options)`
+
+Create a payment button.
 
 ```javascript
-// Using the global instance
-Aruvi.button('#container', payment, options);
-
-// Using the class
-const aruvi = new Aruvi(config);
-const button = aruvi.createButton('#container', payment, options);
-```
-
-#### Payment Options
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `amount` | `string` | Required. Amount in USDC (e.g., '25.00') |
-| `description` | `string` | Optional. Shown to customer |
-| `reference` | `string` | Optional. Your order reference |
-| `metadata` | `object` | Optional. Custom data returned in callbacks |
-| `customerEmail` | `string` | Optional. For receipts |
-
-#### Button Options
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `label` | `string` | 'Pay with Aruvi' | Button text |
-| `variant` | `string` | 'primary' | 'primary', 'secondary', 'outline', 'dark' |
-| `size` | `string` | 'medium' | 'small', 'medium', 'large' |
-| `showLogo` | `boolean` | `true` | Show Aruvi logo |
-| `disabled` | `boolean` | `false` | Disable button |
-
-### Callbacks
-
-```javascript
-{
-  onSuccess: (result) => {
-    // Payment completed successfully
-    // result.paymentId - Unique payment ID
-    // result.transactionHash - Blockchain tx hash
-    // result.amount - Amount paid
-  },
-  
-  onError: (error) => {
-    // Payment failed
-    // error.code - Error code
-    // error.message - Human-readable message
-  },
-  
-  onCancel: () => {
-    // User closed checkout without paying
-  },
-  
-  onPending: (txHash) => {
-    // Transaction submitted, awaiting confirmation
-  },
-}
-```
-
-### Manual Checkout
-
-```javascript
-const aruvi = new Aruvi(config);
-
-aruvi.checkout({
-  amount: '50.00',
-  description: 'Order #12345',
-  onSuccess: handleSuccess,
-  onError: handleError,
+Aruvi.button('#button-container', {
+  amount: '50.00',           // Payment amount
+  currency: 'USDC',          // Currency (default: 'USDC')
+  description: 'Product',    // What the payment is for
+  metadata: { orderId: '123' }, // Custom data (optional)
+  onSuccess: (result) => {}, // Success callback
+  onError: (error) => {},    // Error callback
+  onCancel: () => {},        // Cancel callback (optional)
 });
-
-// Close checkout programmatically
-aruvi.closeCheckout();
 ```
 
-### Payment Links
+### `Aruvi.checkout(options)`
+
+Open checkout modal programmatically.
 
 ```javascript
-// Generate a shareable payment link
-const link = aruvi.createPaymentLink({
+Aruvi.checkout({
   amount: '100.00',
-  description: 'Invoice #12345',
+  description: 'Order #12345',
+  onSuccess: (result) => {
+    // Payment completed
+  },
 });
-// Returns: https://app.aruvi.io/pay?to=0x...&amount=100.00&desc=Invoice%20%2312345
 ```
 
-### Payment Verification
+### Payment Result Object
 
-```javascript
-// Verify by payment ID
-const isValid = await aruvi.verifyPayment(paymentId, expectedAmount);
-
-// Verify by transaction hash
-const isValid = await aruvi.verifyTransaction(txHash);
-```
-
-### Event Listeners
-
-```javascript
-aruvi.on('checkout:open', () => console.log('Checkout opened'));
-aruvi.on('checkout:close', () => console.log('Checkout closed'));
-aruvi.on('payment:success', (event) => console.log('Paid!', event.data));
-aruvi.on('payment:error', (event) => console.log('Failed', event.data));
-aruvi.on('payment:cancel', () => console.log('Cancelled'));
-aruvi.on('payment:pending', (event) => console.log('Pending', event.data.transactionHash));
-
-// Remove listener
-const unsubscribe = aruvi.on('payment:success', handler);
-unsubscribe(); // Stop listening
-```
-
-## React Components
-
-### AruviProvider
-
-Wrap your app to provide Aruvi context:
-
-```tsx
-<AruviProvider config={{ merchantAddress: '0x...' }}>
-  <App />
-</AruviProvider>
-```
-
-### AruviButton
-
-Drop-in payment button:
-
-```tsx
-<AruviButton
-  payment={{ amount: '25.00', description: 'Product' }}
-  onSuccess={(result) => console.log(result)}
-  variant="primary"
-  size="large"
-/>
-```
-
-### CheckoutTrigger
-
-For custom button designs:
-
-```tsx
-<CheckoutTrigger
-  payment={{ amount: '25.00' }}
-  onSuccess={handleSuccess}
->
-  {({ onClick, isLoading }) => (
-    <MyCustomButton onClick={onClick} loading={isLoading}>
-      Buy Now
-    </MyCustomButton>
-  )}
-</CheckoutTrigger>
-```
-
-### PaymentLink
-
-Generate shareable links:
-
-```tsx
-<PaymentLink payment={{ amount: '50.00' }} newTab>
-  Click to Pay $50
-</PaymentLink>
-```
-
-### useAruvi Hook
-
-Access Aruvi methods directly:
-
-```tsx
-function MyComponent() {
-  const { checkout, verifyPayment, createPaymentLink } = useAruvi();
-  
-  const handlePurchase = () => {
-    checkout({
-      amount: '99.00',
-      onSuccess: async (result) => {
-        const verified = await verifyPayment(result.paymentId);
-        if (verified) {
-          // Fulfill order
-        }
-      },
-    });
-  };
-  
-  return <button onClick={handlePurchase}>Purchase</button>;
-}
-```
-
-### usePaymentStatus Hook
-
-Monitor payment status:
-
-```tsx
-function OrderStatus({ paymentId }) {
-  const { isLoading, isVerified, error } = usePaymentStatus({
-    paymentId,
-    pollInterval: 5000, // Check every 5 seconds
-  });
-  
-  if (isLoading) return <p>Checking payment...</p>;
-  if (isVerified) return <p>✅ Payment confirmed!</p>;
-  if (error) return <p>❌ {error}</p>;
-  return null;
+```typescript
+interface PaymentResult {
+  paymentId: string;    // Unique payment identifier (bytes32)
+  txHash: string;       // Transaction hash on blockchain
+  amount: string;       // Payment amount
+  from: string;         // Sender address
+  to: string;           // Recipient (merchant) address
+  timestamp: number;    // Unix timestamp
 }
 ```
 
 ## Server-Side Verification
 
-Always verify payments on your backend before fulfilling orders:
+Always verify payments on your backend before fulfilling orders.
 
 ```javascript
-// Node.js example
-const { verifyPayment } = require('@aruvi/sdk');
+import { verifyPayment } from '@aruvi/sdk';
 
-app.post('/api/orders/complete', async (req, res) => {
-  const { paymentId, orderId, amount } = req.body;
-  
-  // Verify the payment on-chain
-  const result = await verifyPayment({
-    paymentId,
-    merchantAddress: process.env.MERCHANT_ADDRESS,
-    expectedAmount: amount,
-    environment: 'mainnet',
+// On your server
+async function handlePaymentWebhook(paymentId) {
+  const result = await verifyPayment(paymentId, {
+    rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY',
+    gatewayAddress: '0x05798f2304A5B9263243C8002c87D4f59546958D',
   });
-  
-  if (!result.verified) {
-    return res.status(400).json({ error: 'Payment not verified' });
+
+  if (result.verified) {
+    console.log('Payment verified!');
+    console.log('From:', result.from);
+    console.log('To:', result.to);
+    // Fulfill order
+  } else {
+    console.log('Payment not verified:', result.error);
   }
-  
-  // Payment is valid - fulfill the order
-  await fulfillOrder(orderId);
-  res.json({ success: true });
-});
+}
 ```
 
-## Webhooks (Coming Soon)
+## Contract Addresses (Sepolia Testnet)
 
-Configure webhooks to receive real-time payment notifications:
-
-```javascript
-// POST /api/webhooks/aruvi
-app.post('/api/webhooks/aruvi', (req, res) => {
-  // Verify signature
-  const signature = req.headers['x-aruvi-signature'];
-  if (!verifyWebhookSignature(req.body, signature, WEBHOOK_SECRET)) {
-    return res.status(401).json({ error: 'Invalid signature' });
-  }
-  
-  const { event, data } = req.body;
-  
-  switch (event) {
-    case 'payment.completed':
-      await handlePaymentCompleted(data);
-      break;
-    case 'payment.failed':
-      await handlePaymentFailed(data);
-      break;
-  }
-  
-  res.json({ received: true });
-});
-```
+| Contract | Address |
+|----------|---------|
+| AruviPaymentGateway | `0x05798f2304A5B9263243C8002c87D4f59546958D` |
+| ConfidentialUSDCWrapper | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` |
+| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
 
 ## Styling
 
-The SDK injects minimal styles automatically. To customize:
-
-```css
-/* Override button styles */
-.aruvi-button {
-  /* Your custom styles */
-}
-
-/* Override modal styles */
-.aruvi-modal-container {
-  /* Your custom styles */
-}
-```
-
-Or import the CSS file and modify:
+Import the default styles:
 
 ```javascript
-import '@aruvi/sdk/dist/aruvi-sdk.css';
+import '@aruvi/sdk/styles.css';
 ```
 
-## TypeScript
+Or customize with CSS variables:
+
+```css
+:root {
+  --aruvi-primary: #6366f1;
+  --aruvi-primary-hover: #4f46e5;
+  --aruvi-text: #1f2937;
+  --aruvi-background: #ffffff;
+  --aruvi-border: #e5e7eb;
+  --aruvi-border-radius: 8px;
+}
+```
+
+## TypeScript Support
 
 Full TypeScript support with exported types:
 
 ```typescript
-import type {
+import type { 
   AruviConfig,
-  PaymentRequest,
+  PaymentOptions,
   PaymentResult,
-  PaymentError,
-  AruviCallbacks,
+  VerificationResult 
 } from '@aruvi/sdk';
 ```
 
@@ -417,19 +266,16 @@ import type {
 - Safari 13+
 - Edge 80+
 
-## Security
+## License
 
-- All payments are processed through Aruvi's secure checkout
-- Payment amounts are encrypted using Fully Homomorphic Encryption
-- Always verify payments server-side before fulfilling orders
-- Use HTTPS in production
+BSD-3-Clause License - see [LICENSE](https://github.com/ramakrishnanhulk20/Aruvi/blob/master/LICENSE) for details.
+
+## Author
+
+Built with 🔐 by [Ram](https://github.com/ramakrishnanhulk20)
 
 ## Support
 
-- 📚 [Documentation](https://docs.aruvi.io)
-- 💬 [Discord](https://discord.gg/aruvi)
-- 🐛 [GitHub Issues](https://github.com/aruvi/sdk/issues)
-
-## License
-
-MIT © Aruvi
+- 📖 [Documentation](https://aruvi-documentation.vercel.app)
+- 🐛 [Report Issues](https://github.com/ramakrishnanhulk20/Aruvi/issues)
+- 💬 [Discussions](https://github.com/ramakrishnanhulk20/Aruvi/discussions)
