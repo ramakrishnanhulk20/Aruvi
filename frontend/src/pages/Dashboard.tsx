@@ -28,6 +28,8 @@ import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
 import { formatAddress } from '../lib/utils';
 import { useConfidentialToken, useFhevm } from '../hooks';
+import { useTransactionHistory } from '../hooks/useTransactionHistory';
+import { useAruviGateway } from '../hooks/useAruviGateway';
 
 export function Dashboard() {
   const { address } = useAccount();
@@ -46,6 +48,10 @@ export function Dashboard() {
     isSettingOperator,
     refetch
   } = useConfidentialToken();
+  
+  // Get transaction history for stats
+  const { transactions, stats, isLoading: txLoading } = useTransactionHistory();
+  const { requestCount } = useAruviGateway();
 
   // Auto-refresh on mount
   useEffect(() => {
@@ -264,10 +270,10 @@ export function Dashboard() {
               className="grid grid-cols-2 md:grid-cols-4 gap-4"
             >
               {[
-                { label: 'Sent', value: '0', icon: ArrowUpRight },
-                { label: 'Received', value: '0', icon: ArrowDownLeft },
-                { label: 'Wrapped', value: '0', icon: RefreshCw },
-                { label: 'Requests', value: '0', icon: Download },
+                { label: 'Sent', value: stats.totalSent.toString(), icon: ArrowUpRight },
+                { label: 'Received', value: stats.totalReceived.toString(), icon: ArrowDownLeft },
+                { label: 'Refunds', value: stats.totalRefunds.toString(), icon: RefreshCw },
+                { label: 'Requests', value: (requestCount || 0n).toString(), icon: Download },
               ].map((stat) => (
                 <Card key={stat.label} className="p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3">
@@ -303,39 +309,85 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                {/* Empty State */}
-                <div className="p-12 text-center">
-                  <div className="relative inline-block mb-6">
-                    <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center">
-                      <Clock className="w-10 h-10 text-gray-300" />
-                    </div>
+                {txLoading ? (
+                  <div className="p-8 text-center">
                     <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute -top-1 -right-1 w-6 h-6 bg-paypal-blue rounded-full flex items-center justify-center"
-                    >
-                      <Sparkles className="w-3 h-3 text-white" />
-                    </motion.div>
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="w-10 h-10 border-4 border-paypal-blue/20 border-t-paypal-blue rounded-full mx-auto mb-4"
+                    />
+                    <p className="text-gray-500 text-sm">Loading transactions...</p>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">No activity yet</h3>
-                  <p className="text-gray-500 mb-8 max-w-sm mx-auto">
-                    Your encrypted transactions will appear here once you start using Aruvi.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Link to="/send">
-                      <Button className="bg-gradient-to-r from-paypal-blue to-blue-600 hover:from-paypal-dark hover:to-blue-700 shadow-lg shadow-blue-500/20">
-                        <Send className="w-4 h-4 mr-2" />
-                        Send Money
-                      </Button>
-                    </Link>
-                    <Link to="/wallet">
-                      <Button variant="outline" className="border-2">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Funds
-                      </Button>
-                    </Link>
+                ) : transactions.length > 0 ? (
+                  <div className="divide-y divide-gray-100">
+                    {transactions.slice(0, 5).map((tx) => (
+                      <div key={tx.id} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            tx.type === 'sent' ? 'bg-red-50' :
+                            tx.type === 'received' ? 'bg-green-50' : 'bg-blue-50'
+                          }`}>
+                            {tx.type === 'sent' && <ArrowUpRight className="w-5 h-5 text-red-500" />}
+                            {tx.type === 'received' && <ArrowDownLeft className="w-5 h-5 text-green-500" />}
+                            {tx.type === 'refund' && <RotateCcw className="w-5 h-5 text-paypal-blue" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 capitalize">{tx.type}</p>
+                            <p className="text-sm text-gray-500 truncate">
+                              {tx.type === 'sent' ? 'To: ' : 'From: '}
+                              {formatAddress(tx.counterparty, 6)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold ${
+                              tx.type === 'sent' ? 'text-red-600' :
+                              tx.type === 'received' ? 'text-green-600' : 'text-paypal-blue'
+                            }`}>
+                              {tx.type === 'sent' ? '-' : '+'}$••••
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(tx.timestamp * 1000).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  /* Empty State */
+                  <div className="p-12 text-center">
+                    <div className="relative inline-block mb-6">
+                      <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center">
+                        <Clock className="w-10 h-10 text-gray-300" />
+                      </div>
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute -top-1 -right-1 w-6 h-6 bg-paypal-blue rounded-full flex items-center justify-center"
+                      >
+                        <Sparkles className="w-3 h-3 text-white" />
+                      </motion.div>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">No activity yet</h3>
+                    <p className="text-gray-500 mb-8 max-w-sm mx-auto">
+                      Your encrypted transactions will appear here once you start using Aruvi.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <Link to="/send">
+                        <Button className="bg-gradient-to-r from-paypal-blue to-blue-600 hover:from-paypal-dark hover:to-blue-700 shadow-lg shadow-blue-500/20">
+                          <Send className="w-4 h-4 mr-2" />
+                          Send Money
+                        </Button>
+                      </Link>
+                      <Link to="/wallet">
+                        <Button variant="outline" className="border-2">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Funds
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </Card>
             </motion.div>
           </div>

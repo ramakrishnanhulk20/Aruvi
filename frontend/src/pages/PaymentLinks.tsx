@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAccount } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import { motion } from 'framer-motion';
+import { parseAbiItem } from 'viem';
 import { 
   ArrowLeft,
   Plus,
@@ -14,31 +15,138 @@ import {
   Users,
   Sparkles,
   QrCode,
-  Share2
+  Share2,
+  RefreshCw
 } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
 import { copyToClipboard } from '../lib/utils';
+import { CONTRACTS } from '../lib/contracts';
+import { useAruviGateway } from '../hooks/useAruviGateway';
 
 interface PaymentLink {
   id: string;
   name: string;
-  amount: string | null; // null means any amount
+  amount: string | null;
   description: string;
   createdAt: number;
   payments: number;
   totalReceived: string;
   isActive: boolean;
   url: string;
+  txHash?: string;
 }
+
+// Event signature for RequestCreated
+const REQUEST_CREATED_EVENT = parseAbiItem('event RequestCreated(bytes32 indexed requestId, address indexed requester)');
+const REQUEST_FULFILLED_EVENT = parseAbiItem('event RequestFulfilled(bytes32 indexed requestId, bytes32 indexed paymentId)');
 
 export function PaymentLinks() {
   const navigate = useNavigate();
-  useAccount(); // For wallet connection state
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { getRequestInfo } = useAruviGateway();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // TODO: Replace with real data from blockchain/backend
-  const paymentLinks: PaymentLink[] = [];
+  // Fetch payment links from blockchain events + localStorage
+  const fetchPaymentLinks = useCallback(async () => {
+    if (!address || !publicClient) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Get saved links from localStorage (has metadata like name, description)
+      const savedLinks: PaymentLink[] = JSON.parse(localStorage.getItem('aruvi_payment_links') || '[]');
+      const savedLinkIds = new Set(savedLinks.map(l => l.id.toLowerCase()));
+
+      // Fetch RequestCreated events for this user
+      const logs = await publicClient.getLogs({
+        address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
+        event: REQUEST_CREATED_EVENT,
+        args: { requester: address },
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+      });
+
+      // Fetch fulfillment events to count payments
+      const fulfillmentLogs = await publicClient.getLogs({
+        address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
+        event: REQUEST_FULFILLED_EVENT,
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+      });
+
+      // Count payments per request
+      const paymentCounts: Record<string, number> = {};
+      fulfillmentLogs.forEach(log => {
+        const requestId = (log.args as { requestId?: string }).requestId?.toLowerCase();
+        if (requestId) {
+          paymentCounts[requestId] = (paymentCounts[requestId] || 0) + 1;
+        }
+      });
+
+      // Create links from blockchain events that aren't in localStorage
+      const chainLinks: PaymentLink[] = [];
+      for (const log of logs) {
+        const requestId = (log.args as { requestId?: string }).requestId;
+        if (!requestId || savedLinkIds.has(requestId.toLowerCase())) continue;
+
+        // Get request info to check if fulfilled/expired
+        const info = await getRequestInfo(requestId as `0x${string}`);
+        const isActive = info ? !info.fulfilled && (info.expiresAt === 0n || info.expiresAt > BigInt(Math.floor(Date.now() / 1000))) : true;
+
+        chainLinks.push({
+          id: requestId,
+          name: `Payment Request`,
+          amount: null, // Can't know amount (encrypted)
+          description: '',
+          createdAt: Date.now(), // Would need block timestamp
+          payments: paymentCounts[requestId.toLowerCase()] || 0,
+          totalReceived: '••••',
+          isActive,
+          url: `${window.location.origin}/pay/${requestId}`,
+          txHash: log.transactionHash,
+        });
+      }
+
+      // Update saved links with payment counts and active status
+      const updatedSavedLinks = await Promise.all(savedLinks.map(async (link) => {
+        const info = await getRequestInfo(link.id as `0x${string}`);
+        const isActive = info ? !info.fulfilled && (info.expiresAt === 0n || info.expiresAt > BigInt(Math.floor(Date.now() / 1000))) : link.isActive;
+        return {
+          ...link,
+          payments: paymentCounts[link.id.toLowerCase()] || link.payments,
+          isActive,
+          url: `${window.location.origin}/pay/${link.id}`,
+        };
+      }));
+
+      // Combine and sort by creation date
+      const allLinks = [...updatedSavedLinks, ...chainLinks];
+      allLinks.sort((a, b) => b.createdAt - a.createdAt);
+
+      setPaymentLinks(allLinks);
+    } catch (error) {
+      console.error('Failed to fetch payment links:', error);
+      // Fall back to localStorage only
+      const savedLinks: PaymentLink[] = JSON.parse(localStorage.getItem('aruvi_payment_links') || '[]');
+      setPaymentLinks(savedLinks.map(l => ({
+        ...l,
+        url: `${window.location.origin}/pay/${l.id}`,
+      })));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, publicClient, getRequestInfo]);
+
+  useEffect(() => {
+    fetchPaymentLinks();
+  }, [fetchPaymentLinks]);
 
   const handleCopy = async (link: PaymentLink) => {
     const success = await copyToClipboard(link.url);
@@ -77,12 +185,22 @@ export function PaymentLinks() {
               </h1>
               <p className="text-gray-500">Create and manage your payment links</p>
             </div>
-            <Link to="/business/links/new">
-              <Button className="bg-gradient-to-r from-paypal-blue to-blue-600 hover:from-paypal-dark hover:to-blue-700 shadow-lg shadow-blue-500/25">
-                <Plus className="w-5 h-5 mr-2" />
-                Create New Link
-              </Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => fetchPaymentLinks()}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-600 hover:border-paypal-blue hover:text-paypal-blue transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium">Refresh</span>
+              </button>
+              <Link to="/business/links/new">
+                <Button className="bg-gradient-to-r from-paypal-blue to-blue-600 hover:from-paypal-dark hover:to-blue-700 shadow-lg shadow-blue-500/25">
+                  <Plus className="w-5 h-5 mr-2" />
+                  Create New Link
+                </Button>
+              </Link>
+            </div>
           </motion.div>
 
           {/* Stats Overview */}
@@ -118,7 +236,16 @@ export function PaymentLinks() {
             transition={{ delay: 0.15 }}
           >
             <Card className="overflow-hidden">
-              {paymentLinks.length === 0 ? (
+              {isLoading ? (
+                <div className="p-12 text-center">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="w-12 h-12 border-4 border-paypal-blue/20 border-t-paypal-blue rounded-full mx-auto mb-4"
+                  />
+                  <p className="text-gray-500">Loading payment links...</p>
+                </div>
+              ) : paymentLinks.length === 0 ? (
                 <div className="p-16 text-center">
                   <div className="relative inline-block mb-8">
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full blur-2xl opacity-60 scale-150" />

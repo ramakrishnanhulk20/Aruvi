@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAccount, usePublicClient } from 'wagmi';
 import { motion } from 'framer-motion';
+import { parseAbiItem } from 'viem';
+import toast from 'react-hot-toast';
 import { 
   ArrowLeft,
   TrendingUp,
@@ -20,36 +23,131 @@ import {
 } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
+import { CONTRACTS } from '../lib/contracts';
+import { useConfidentialToken } from '../hooks/useConfidentialToken';
+import { formatAddress } from '../lib/utils';
+
+// Event signatures
+const PAYMENT_SENT_EVENT = parseAbiItem('event PaymentSent(bytes32 indexed paymentId, address indexed sender, address indexed recipient)');
+const REQUEST_CREATED_EVENT = parseAbiItem('event RequestCreated(bytes32 indexed requestId, address indexed requester)');
 
 export function Business() {
   const navigate = useNavigate();
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { formattedDecryptedBalance, decryptBalance, isDecrypting: tokenDecrypting, confidentialBalanceHandle } = useConfidentialToken();
+  
   const [showRevenue, setShowRevenue] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
-  const [revenue, setRevenue] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // TODO: Replace with real data from blockchain
-  const stats = {
+  // Real stats from blockchain
+  const [stats, setStats] = useState({
     totalPayments: 0,
     activeLinks: 0,
-    customers: 0,
-  };
+    customers: new Set<string>(),
+  });
+  const [recentPayments, setRecentPayments] = useState<Array<{
+    paymentId: string;
+    sender: string;
+    timestamp: number;
+    txHash: string;
+  }>>([]);
+  const [paymentLinks, setPaymentLinks] = useState<Array<{ id: string; name: string; isActive: boolean }>>([]);
 
-  const recentTransactions: unknown[] = [];
-  const paymentLinks: unknown[] = [];
+  // Fetch business stats from blockchain
+  const fetchBusinessStats = useCallback(async () => {
+    if (!address || !publicClient) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Fetch payments received by this user (as recipient)
+      const receivedLogs = await publicClient.getLogs({
+        address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
+        event: PAYMENT_SENT_EVENT,
+        args: { recipient: address },
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+      });
+
+      // Fetch requests created by this user
+      const requestLogs = await publicClient.getLogs({
+        address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
+        event: REQUEST_CREATED_EVENT,
+        args: { requester: address },
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+      });
+
+      // Count unique customers (senders)
+      const customers = new Set<string>();
+      const payments: typeof recentPayments = [];
+
+      for (const log of receivedLogs) {
+        const sender = (log.args as { sender?: string }).sender;
+        if (sender) {
+          customers.add(sender.toLowerCase());
+          payments.push({
+            paymentId: (log.args as { paymentId?: string }).paymentId || '',
+            sender,
+            timestamp: Math.floor(Date.now() / 1000), // Would need block timestamp
+            txHash: log.transactionHash,
+          });
+        }
+      }
+
+      // Get active links count from localStorage
+      const savedLinks = JSON.parse(localStorage.getItem('aruvi_payment_links') || '[]');
+      const activeLinks = savedLinks.filter((l: { isActive?: boolean }) => l.isActive !== false).length;
+      setPaymentLinks(savedLinks.slice(0, 3));
+
+      setStats({
+        totalPayments: receivedLogs.length,
+        activeLinks: activeLinks || requestLogs.length,
+        customers,
+      });
+
+      // Sort by timestamp (newest first) and take last 5
+      payments.reverse();
+      setRecentPayments(payments.slice(0, 5));
+    } catch (error) {
+      console.error('Failed to fetch business stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, publicClient]);
+
+  useEffect(() => {
+    fetchBusinessStats();
+  }, [fetchBusinessStats]);
 
   const handleRevealRevenue = async () => {
     if (showRevenue) {
       setShowRevenue(false);
-      setRevenue(null);
+      return;
+    }
+
+    if (!confidentialBalanceHandle) {
+      toast.error('No confidential balance to decrypt');
       return;
     }
 
     setIsDecrypting(true);
-    // TODO: Implement actual FHE decryption
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setRevenue('0.00');
-    setShowRevenue(true);
-    setIsDecrypting(false);
+    try {
+      const result = await decryptBalance();
+      if (result !== null) {
+        setShowRevenue(true);
+        toast.success('Revenue decrypted');
+      }
+    } catch {
+      toast.error('Failed to decrypt revenue');
+    } finally {
+      setIsDecrypting(false);
+    }
   };
 
   return (
@@ -120,7 +218,7 @@ export function Business() {
                     </div>
                     <button
                       onClick={handleRevealRevenue}
-                      disabled={isDecrypting}
+                      disabled={isDecrypting || tokenDecrypting}
                       className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white/90 text-sm font-medium transition-all disabled:opacity-50 backdrop-blur-sm"
                     >
                       {isDecrypting ? (
@@ -144,13 +242,13 @@ export function Business() {
 
                   <div className="mb-6">
                     <div className="text-5xl md:text-6xl font-bold text-white mb-2">
-                      {showRevenue && revenue ? (
+                      {showRevenue && formattedDecryptedBalance ? (
                         <motion.span
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           className="inline-flex items-center gap-3"
                         >
-                          ${revenue}
+                          ${formattedDecryptedBalance}
                           <span className="text-2xl font-normal text-white/70">USD</span>
                         </motion.span>
                       ) : (
@@ -159,7 +257,7 @@ export function Business() {
                     </div>
                     <p className="text-white/60 text-sm flex items-center gap-2">
                       <Sparkles className="w-4 h-4" />
-                      All-time encrypted revenue
+                      All-time encrypted revenue (cUSDC balance)
                     </p>
                   </div>
 
@@ -192,7 +290,7 @@ export function Business() {
               {[
                 { label: 'Total Payments', value: stats.totalPayments, icon: DollarSign },
                 { label: 'Active Links', value: stats.activeLinks, icon: LinkIcon },
-                { label: 'Customers', value: stats.customers, icon: Users },
+                { label: 'Customers', value: stats.customers.size, icon: Users },
               ].map((stat) => (
                 <Card key={stat.label} className="p-5 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3 mb-3">
@@ -230,7 +328,16 @@ export function Business() {
                   </div>
                 </div>
 
-                {recentTransactions.length === 0 ? (
+                {isLoading ? (
+                  <div className="p-8 text-center">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="w-10 h-10 border-4 border-paypal-blue/20 border-t-paypal-blue rounded-full mx-auto mb-4"
+                    />
+                    <p className="text-gray-500 text-sm">Loading payments...</p>
+                  </div>
+                ) : recentPayments.length === 0 ? (
                   <div className="p-12 text-center">
                     <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                       <Clock className="w-8 h-8 text-gray-300" />
@@ -248,7 +355,32 @@ export function Business() {
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
-                    {/* Transaction items would go here */}
+                    {recentPayments.map((payment) => (
+                      <div key={payment.paymentId} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                            <ArrowUpRight className="w-5 h-5 text-green-500 rotate-180" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900">Payment Received</p>
+                            <p className="text-sm text-gray-500 truncate">
+                              From: {formatAddress(payment.sender, 6)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-green-600">+$••••</p>
+                            <a
+                              href={`https://sepolia.etherscan.io/tx/${payment.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-paypal-blue hover:underline"
+                            >
+                              View tx
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </Card>

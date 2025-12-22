@@ -4,6 +4,7 @@ import { useAccount } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseUnits } from 'viem';
 import toast from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   ArrowLeft,
   Shield,
@@ -11,7 +12,6 @@ import {
   Check,
   Copy,
   Link as LinkIcon,
-  QrCode,
   Share2,
   Sparkles,
   ArrowRight,
@@ -394,14 +394,50 @@ export function Request() {
                         </div>
                       </div>
 
-                      {/* QR Code placeholder */}
-                      <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-2xl p-6 text-center">
-                        <div className="w-36 h-36 bg-white border-2 border-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-inner">
-                          <QrCode className="w-20 h-20 text-gray-200" />
+                      {/* QR Code */}
+                      <div className="qr-code-container bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-2xl p-6 text-center">
+                        <div className="w-36 h-36 bg-white border-2 border-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-inner p-2">
+                          <QRCodeSVG 
+                            value={paymentLink}
+                            size={120}
+                            level="H"
+                            includeMargin={false}
+                            bgColor="#ffffff"
+                            fgColor="#003087"
+                          />
                         </div>
-                        <p className="text-sm text-gray-400 font-medium">
-                          QR Code (Coming Soon)
+                        <p className="text-sm text-gray-600 font-medium mb-3">
+                          Scan to pay with Aruvi
                         </p>
+                        <button 
+                          onClick={() => {
+                            const svg = document.querySelector('.qr-code-container svg');
+                            if (svg) {
+                              const canvas = document.createElement('canvas');
+                              const ctx = canvas.getContext('2d');
+                              const svgData = new XMLSerializer().serializeToString(svg);
+                              const img = new Image();
+                              img.onload = () => {
+                                canvas.width = 400;
+                                canvas.height = 400;
+                                if (ctx) {
+                                  ctx.fillStyle = '#ffffff';
+                                  ctx.fillRect(0, 0, 400, 400);
+                                  ctx.drawImage(img, 0, 0, 400, 400);
+                                }
+                                const link = document.createElement('a');
+                                link.download = `aruvi-request-${requestId?.slice(0, 8)}.png`;
+                                link.href = canvas.toDataURL('image/png');
+                                link.click();
+                              };
+                              img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                            }
+                          }}
+                          className="inline-flex items-center gap-2 text-sm text-paypal-blue hover:text-paypal-dark font-medium"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download QR Code
+                        </button>
                       </div>
 
                       {/* Transaction Link */}

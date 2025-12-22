@@ -4,10 +4,11 @@
  * PayPal-like UI with Navy blue & white design
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAccount, usePublicClient } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { isAddress, parseUnits } from 'viem';
+import { isAddress, parseUnits, parseAbiItem } from 'viem';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft,
@@ -30,8 +31,12 @@ import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
 import { useAruviGateway } from '../hooks/useAruviGateway';
 import { useConfidentialToken } from '../hooks/useConfidentialToken';
-import { TOKEN_CONFIG } from '../lib/contracts';
+import { TOKEN_CONFIG, CONTRACTS } from '../lib/contracts';
 import { formatAddress } from '../lib/utils';
+
+// Event signatures
+const SUBSCRIPTION_CREATED_EVENT = parseAbiItem('event SubscriptionCreated(bytes32 indexed subscriptionId, address indexed subscriber, address indexed recipient)');
+const SUBSCRIPTION_CANCELLED_EVENT = parseAbiItem('event SubscriptionCancelled(bytes32 indexed subscriptionId)');
 
 // Subscription frequency options
 const FREQUENCY_OPTIONS = [
@@ -58,7 +63,9 @@ const ZERO_HANDLE = '0x000000000000000000000000000000000000000000000000000000000
 
 export function Subscriptions() {
   const navigate = useNavigate();
-  const { createSubscription, cancelSubscription, executeSubscription, isProcessing, fhevmReady } = useAruviGateway();
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { createSubscription, cancelSubscription, executeSubscription, isProcessing, fhevmReady, getSubscriptionInfo } = useAruviGateway();
   const { confidentialBalanceHandle, formattedErc20Balance } = useConfidentialToken();
 
   const [view, setView] = useState<View>('list');
@@ -66,28 +73,104 @@ export function Subscriptions() {
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState(FREQUENCY_OPTIONS[2].value); // Monthly default
   const [formError, setFormError] = useState('');
-
-  // Store subscriptions (in production, fetch from contract events)
-  // Load from localStorage on initial render
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
-    if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem('aruvi_subscriptions');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
 
   const hasCusdcBalance = confidentialBalanceHandle && confidentialBalanceHandle !== ZERO_HANDLE;
   const hasUsdcBalance = formattedErc20Balance && parseFloat(formattedErc20Balance) > 0;
   const isValidRecipient = recipient && isAddress(recipient);
   const isValidAmount = amount && parseFloat(amount) > 0;
 
-  // Save subscriptions to localStorage
+  // Fetch subscriptions from blockchain events
+  const fetchSubscriptions = useCallback(async () => {
+    if (!address || !publicClient) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Fetch SubscriptionCreated events for this user
+      const createdLogs = await publicClient.getLogs({
+        address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
+        event: SUBSCRIPTION_CREATED_EVENT,
+        args: { subscriber: address },
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+      });
+
+      // Fetch SubscriptionCancelled events
+      const cancelledLogs = await publicClient.getLogs({
+        address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
+        event: SUBSCRIPTION_CANCELLED_EVENT,
+        fromBlock: 'earliest',
+        toBlock: 'latest'
+      });
+
+      const cancelledIds = new Set(
+        cancelledLogs.map(log => ((log.args as { subscriptionId?: string }).subscriptionId || '').toLowerCase())
+      );
+
+      // Build subscription list
+      const subs: Subscription[] = [];
+      for (const log of createdLogs) {
+        const subscriptionId = (log.args as { subscriptionId?: string }).subscriptionId as `0x${string}`;
+        const recipientAddr = (log.args as { recipient?: string }).recipient as `0x${string}`;
+        
+        if (!subscriptionId) continue;
+
+        // Get subscription details from contract
+        let interval = 2592000; // Default 30 days
+        let nextPayment = Math.floor(Date.now() / 1000) + interval;
+        let isActive = !cancelledIds.has(subscriptionId.toLowerCase());
+
+        try {
+          const info = await getSubscriptionInfo(subscriptionId);
+          if (info) {
+            interval = Number(info.interval);
+            nextPayment = Number(info.nextPayment);
+            isActive = info.active;
+          }
+        } catch {
+          // Use defaults if query fails
+        }
+
+        subs.push({
+          id: subscriptionId,
+          recipient: recipientAddr,
+          frequency: interval,
+          nextPayment,
+          status: isActive ? 'active' : 'cancelled',
+          createdAt: Math.floor(Date.now() / 1000),
+          txHash: log.transactionHash,
+        });
+      }
+
+      // Sort by creation (newest first)
+      subs.reverse();
+      setSubscriptions(subs);
+    } catch (error) {
+      console.error('Failed to fetch subscriptions:', error);
+      // Fall back to localStorage
+      const stored = localStorage.getItem('aruvi_subscriptions');
+      if (stored) {
+        try {
+          setSubscriptions(JSON.parse(stored));
+        } catch {
+          setSubscriptions([]);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, publicClient, getSubscriptionInfo]);
+
+  useEffect(() => {
+    fetchSubscriptions();
+  }, [fetchSubscriptions]);
+
+  // Save to localStorage as backup
   const saveSubscriptions = (subs: Subscription[]) => {
     setSubscriptions(subs);
     localStorage.setItem('aruvi_subscriptions', JSON.stringify(subs));
@@ -268,7 +351,18 @@ export function Subscriptions() {
                 </Card>
 
                 {/* Subscriptions List */}
-                {activeSubscriptions.length > 0 ? (
+                {isLoading ? (
+                  <Card className="p-12">
+                    <div className="text-center">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="w-12 h-12 border-4 border-paypal-blue/20 border-t-paypal-blue rounded-full mx-auto mb-4"
+                      />
+                      <p className="text-gray-500">Loading subscriptions...</p>
+                    </div>
+                  </Card>
+                ) : activeSubscriptions.length > 0 ? (
                   <div className="space-y-4">
                     {activeSubscriptions.map((sub) => (
                       <Card key={sub.id} className="overflow-hidden hover:shadow-lg transition-shadow">
