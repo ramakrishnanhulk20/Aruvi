@@ -4,8 +4,8 @@
  */
 export declare const CONTRACTS: {
     readonly testnet: {
-        readonly PaymentGateway: "0x05798f2304A5B9263243C8002c87D4f59546958D";
-        readonly ConfidentialUSDCWrapper: "0x...";
+        readonly PaymentGateway: "0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b";
+        readonly ConfidentialUSDCWrapper: "0xf99376BE228E8212C3C9b8B746683C96C1517e8B";
         readonly chainId: 11155111;
         readonly chainName: "Sepolia";
         readonly rpcUrl: "https://rpc.sepolia.org";
@@ -38,36 +38,24 @@ export declare const PAYMENT_GATEWAY_ABI: readonly [{
         readonly type: "bytes32";
         readonly indexed: true;
     }, {
-        readonly name: "sender";
+        readonly name: "from";
         readonly type: "address";
         readonly indexed: true;
     }, {
-        readonly name: "recipient";
+        readonly name: "to";
         readonly type: "address";
         readonly indexed: true;
-    }, {
-        readonly name: "amount";
-        readonly type: "uint256";
-        readonly indexed: false;
     }];
 }, {
-    readonly name: "PaymentReceived";
+    readonly name: "PaymentRefunded";
     readonly type: "event";
     readonly inputs: readonly [{
         readonly name: "paymentId";
         readonly type: "bytes32";
         readonly indexed: true;
-    }, {
-        readonly name: "sender";
-        readonly type: "address";
-        readonly indexed: false;
-    }, {
-        readonly name: "recipient";
-        readonly type: "address";
-        readonly indexed: false;
     }];
 }, {
-    readonly name: "getPayment";
+    readonly name: "getPaymentInfo";
     readonly type: "function";
     readonly stateMutability: "view";
     readonly inputs: readonly [{
@@ -75,27 +63,23 @@ export declare const PAYMENT_GATEWAY_ABI: readonly [{
         readonly type: "bytes32";
     }];
     readonly outputs: readonly [{
-        readonly name: "";
-        readonly type: "tuple";
-        readonly components: readonly [{
-            readonly name: "sender";
-            readonly type: "address";
-        }, {
-            readonly name: "recipient";
-            readonly type: "address";
-        }, {
-            readonly name: "amount";
-            readonly type: "uint256";
-        }, {
-            readonly name: "timestamp";
-            readonly type: "uint256";
-        }, {
-            readonly name: "status";
-            readonly type: "uint8";
-        }];
+        readonly name: "sender";
+        readonly type: "address";
+    }, {
+        readonly name: "recipient";
+        readonly type: "address";
+    }, {
+        readonly name: "token";
+        readonly type: "address";
+    }, {
+        readonly name: "timestamp";
+        readonly type: "uint256";
+    }, {
+        readonly name: "isRefunded";
+        readonly type: "bool";
     }];
 }, {
-    readonly name: "payments";
+    readonly name: "refunded";
     readonly type: "function";
     readonly stateMutability: "view";
     readonly inputs: readonly [{
@@ -103,20 +87,8 @@ export declare const PAYMENT_GATEWAY_ABI: readonly [{
         readonly type: "bytes32";
     }];
     readonly outputs: readonly [{
-        readonly name: "sender";
-        readonly type: "address";
-    }, {
-        readonly name: "recipient";
-        readonly type: "address";
-    }, {
-        readonly name: "amount";
-        readonly type: "uint256";
-    }, {
-        readonly name: "timestamp";
-        readonly type: "uint256";
-    }, {
-        readonly name: "status";
-        readonly type: "uint8";
+        readonly name: "";
+        readonly type: "bool";
     }];
 }];
 export declare const MESSAGE_TYPES: {

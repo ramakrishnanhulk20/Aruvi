@@ -89,8 +89,8 @@ export declare class Aruvi {
      * Get contract addresses
      */
     getContracts(): {
-        readonly PaymentGateway: "0x05798f2304A5B9263243C8002c87D4f59546958D";
-        readonly ConfidentialUSDCWrapper: "0x...";
+        readonly PaymentGateway: "0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b";
+        readonly ConfidentialUSDCWrapper: "0xf99376BE228E8212C3C9b8B746683C96C1517e8B";
         readonly chainId: 11155111;
         readonly chainName: "Sepolia";
         readonly rpcUrl: "https://rpc.sepolia.org";
