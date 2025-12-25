@@ -68,6 +68,17 @@ export function DirectTransferPage() {
       setFormError('Please enter a valid amount');
       return;
     }
+    
+    // Validate against available balance if we have a decrypted value
+    if (formattedDecryptedBalance) {
+      const enteredAmount = parseFloat(amount);
+      const availableBalance = parseFloat(formattedDecryptedBalance);
+      if (enteredAmount > availableBalance) {
+        setFormError(`Insufficient balance. Available: ${availableBalance.toFixed(2)} cUSDC`);
+        return;
+      }
+    }
+    
     setFormError('');
     setStep('confirm');
   };
@@ -86,12 +97,13 @@ export function DirectTransferPage() {
         toast.success('Transfer sent!', { id: 'direct-send' });
         setStep('success');
       } else {
-        toast.error('Transfer failed', { id: 'direct-send' });
+        toast.error('Transfer failed - no result returned', { id: 'direct-send' });
         setFormError('Transfer failed. Please try again.');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Transfer failed';
       setFormError(errorMessage);
+      toast.error(errorMessage, { id: 'direct-send' });
       toast.error('Transfer failed', { id: 'direct-send' });
     }
   };

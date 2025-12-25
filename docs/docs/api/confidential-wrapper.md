@@ -7,7 +7,7 @@ title: ConfidentialWrapper
 
 Contract for wrapping USDC into confidential (encrypted) tokens.
 
-**Address (Sepolia):** `0x7df31ba1e1e6a2A7e6f29FB4ED2F3ED7C5F9E9A5`
+**Address (Sepolia):** `0xf99376BE228E8212C3C9b8B746683C96C1517e8B`
 
 ## Write Functions
 
@@ -370,10 +370,10 @@ Only the balance owner can decrypt their balance. This requires:
 The PaymentGateway uses this wrapper internally:
 
 ```solidity
-// PaymentGateway.sol
-function sendConfidential(address to, einput amount, bytes calldata proof) {
-    // Transfers confidential tokens
-    wrapper.transferFromEncrypted(msg.sender, to, amount, proof);
+// AruviPaymentGateway.sol
+function send(address recipient, externalEuint64 encryptedAmount, bytes calldata proof) {
+    // Transfers confidential tokens via wrapper
+    wrapper.confidentialTransferFrom(msg.sender, recipient, amount, proof);
     // ...
 }
 ```

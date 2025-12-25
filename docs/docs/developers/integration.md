@@ -39,8 +39,8 @@ import { sepolia } from 'viem/chains';
 import { paymentGatewayABI } from './abis/PaymentGateway';
 import { wrapperABI } from './abis/ConfidentialUSDCWrapper';
 
-const PAYMENT_GATEWAY = '0x05798f2304A5B9263243C8002c87D4f59546958D';
-const WRAPPER = '0x7df31ba1e1e6a2A7e6f29FB4ED2F3ED7C5F9E9A5';
+const PAYMENT_GATEWAY = '0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b';
+const WRAPPER = '0xf99376BE228E8212C3C9b8B746683C96C1517e8B';
 
 const publicClient = createPublicClient({
   chain: sepolia,
@@ -90,7 +90,7 @@ async function sendPayment(
   const hash = await walletClient.writeContract({
     address: PAYMENT_GATEWAY,
     abi: paymentGatewayABI,
-    functionName: 'sendConfidential',
+    functionName: 'send',
     args: [to, handles[0], inputProof],
   });
   
@@ -131,8 +131,8 @@ import { useAccount, useWriteContract, useReadContract } from 'wagmi';
 import { parseAbi } from 'viem';
 
 const paymentGatewayABI = parseAbi([
-  'function sendConfidential(address to, bytes32 amount, bytes proof) returns (uint256)',
-  'event PaymentSent(uint256 indexed paymentId, address indexed from, address indexed to)',
+  'function send(address to, bytes32 encryptedAmount, bytes proof) returns (bytes32)',
+  'event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to)',
 ]);
 
 function PayButton({ to, amount }: { to: string; amount: bigint }) {
@@ -145,7 +145,7 @@ function PayButton({ to, amount }: { to: string; amount: bigint }) {
     writeContract({
       address: PAYMENT_GATEWAY,
       abi: paymentGatewayABI,
-      functionName: 'sendConfidential',
+      functionName: 'send',
       args: [to, handles[0], inputProof],
     });
   };
@@ -306,9 +306,9 @@ All development should happen on Sepolia:
 const config = {
   chainId: 11155111,
   rpcUrl: process.env.SEPOLIA_RPC_URL || 'https://rpc.sepolia.org',
-  paymentGateway: '0x05798f2304A5B9263243C8002c87D4f59546958D',
-  wrapper: '0x7df31ba1e1e6a2A7e6f29FB4ED2F3ED7C5F9E9A5',
-  testUsdc: '0x0D26Bc297A3ca836F68c37E8CAFf95C4F96Cd743',
+  paymentGateway: '0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b',
+  wrapper: '0xf99376BE228E8212C3C9b8B746683C96C1517e8B',
+  usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
 };
 ```
 

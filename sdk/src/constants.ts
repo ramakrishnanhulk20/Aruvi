@@ -9,8 +9,8 @@
 
 export const CONTRACTS = {
   testnet: {
-    PaymentGateway: '0x05798f2304A5B9263243C8002c87D4f59546958D' as const,
-    ConfidentialUSDCWrapper: '0x...' as const, // Add actual address
+    PaymentGateway: '0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b' as const,
+    ConfidentialUSDCWrapper: '0xf99376BE228E8212C3C9b8B746683C96C1517e8B' as const,
     chainId: 11155111,
     chainName: 'Sepolia',
     rpcUrl: 'https://rpc.sepolia.org', // Default public RPC - override with custom rpcUrl in config
@@ -51,51 +51,36 @@ export const PAYMENT_GATEWAY_ABI = [
     type: 'event',
     inputs: [
       { name: 'paymentId', type: 'bytes32', indexed: true },
-      { name: 'sender', type: 'address', indexed: true },
-      { name: 'recipient', type: 'address', indexed: true },
-      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'from', type: 'address', indexed: true },
+      { name: 'to', type: 'address', indexed: true },
     ],
   },
   {
-    name: 'PaymentReceived',
+    name: 'PaymentRefunded',
     type: 'event',
     inputs: [
       { name: 'paymentId', type: 'bytes32', indexed: true },
-      { name: 'sender', type: 'address', indexed: false },
-      { name: 'recipient', type: 'address', indexed: false },
     ],
   },
   {
-    name: 'getPayment',
+    name: 'getPaymentInfo',
     type: 'function',
     stateMutability: 'view',
     inputs: [{ name: 'paymentId', type: 'bytes32' }],
     outputs: [
-      {
-        name: '',
-        type: 'tuple',
-        components: [
-          { name: 'sender', type: 'address' },
-          { name: 'recipient', type: 'address' },
-          { name: 'amount', type: 'uint256' },
-          { name: 'timestamp', type: 'uint256' },
-          { name: 'status', type: 'uint8' },
-        ],
-      },
+      { name: 'sender', type: 'address' },
+      { name: 'recipient', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'timestamp', type: 'uint256' },
+      { name: 'isRefunded', type: 'bool' },
     ],
   },
   {
-    name: 'payments',
+    name: 'refunded',
     type: 'function',
     stateMutability: 'view',
     inputs: [{ name: '', type: 'bytes32' }],
-    outputs: [
-      { name: 'sender', type: 'address' },
-      { name: 'recipient', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-      { name: 'timestamp', type: 'uint256' },
-      { name: 'status', type: 'uint8' },
-    ],
+    outputs: [{ name: '', type: 'bool' }],
   },
 ] as const;
 

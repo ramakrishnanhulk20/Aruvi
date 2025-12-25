@@ -14,7 +14,8 @@ import {
   Subscriptions,
   Pay,
   Refunds,
-  Checkout
+  Checkout,
+  MultiSend
 } from './pages';
 
 // Protected route wrapper
@@ -51,6 +52,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Send />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/multi-send"
+          element={
+            <ProtectedRoute>
+              <MultiSend />
             </ProtectedRoute>
           }
         />

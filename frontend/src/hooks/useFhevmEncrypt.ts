@@ -22,9 +22,12 @@ function uint8ArrayToHex(arr: Uint8Array): `0x${string}` {
 
 export function useFhevmEncrypt() {
   const { instance, isReady, error } = useFhevm();
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const [isEncrypting, setIsEncrypting] = useState(false);
   const [encryptError, setEncryptError] = useState<Error | null>(null);
+
+  // Max uint64 value for validation
+  const MAX_UINT64 = 18446744073709551615n;
 
   /**
    * Encrypt an amount for a specific contract
@@ -37,8 +40,14 @@ export function useFhevmEncrypt() {
       amount: bigint,
       contractAddress: string
     ): Promise<EncryptedAmount | null> => {
-      if (!instance || !address || !isReady) {
-        setEncryptError(new Error('FHEVM not ready'));
+      if (!instance || !address || !isReady || !isConnected) {
+        setEncryptError(new Error('FHEVM not ready or wallet not connected'));
+        return null;
+      }
+
+      // Validate amount bounds for uint64 encryption
+      if (amount < 0n || amount > MAX_UINT64) {
+        setEncryptError(new Error('Amount out of range for uint64 encryption'));
         return null;
       }
 
@@ -84,7 +93,7 @@ export function useFhevmEncrypt() {
         setIsEncrypting(false);
       }
     },
-    [instance, address, isReady]
+    [instance, address, isReady, isConnected]
   );
 
   return {

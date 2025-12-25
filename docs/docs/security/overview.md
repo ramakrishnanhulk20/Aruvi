@@ -115,11 +115,11 @@ Aruvi uses Zama's recommended security parameters:
 
 | Function | Who Can Call |
 |----------|--------------|
-| `sendConfidential` | Anyone (uses own balance) |
+| `send` | Anyone (uses own balance) |
 | `wrap` | Anyone (uses own USDC) |
 | `unwrap` | Anyone (uses own cUSDC) |
-| `cancelSubscription` | Only subscription payer |
-| `approveRefund` | Only payment recipient |
+| `cancelSubscription` | Only subscription subscriber |
+| `refund` | Only payment recipient |
 
 ### Admin Functions
 

@@ -8,13 +8,13 @@
 
 import { useCallback, useState } from 'react';
 import { useAccount, useWriteContract, usePublicClient } from 'wagmi';
-import { parseAbi, keccak256, toBytes } from 'viem';
+import { keccak256, toBytes } from 'viem';
 import { CONTRACTS, WRAPPER_ABI } from '../lib/contracts';
 import { useFhevmEncrypt } from './useFhevmEncrypt';
 import { useFhevm } from '../providers/useFhevmContext';
 
-// Parse the wrapper ABI
-const WRAPPER_ABI_PARSED = parseAbi(WRAPPER_ABI);
+// Use ABI directly (JSON format doesn't need parseAbi)
+const WRAPPER_ABI_PARSED = WRAPPER_ABI;
 
 export interface TransferResult {
   hash: `0x${string}`;
@@ -85,11 +85,16 @@ export function useSimpleTransfer() {
 
         console.log('[SimpleTransfer] Transaction sent:', hash);
 
-        // Wait for confirmation and get transferred handle from event
+        // Wait for confirmation and check status
         let transferredHandle: `0x${string}` | undefined;
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
           console.log('[SimpleTransfer] Confirmed! Status:', receipt.status);
+          
+          // Check transaction status - CRITICAL!
+          if (receipt.status === 'reverted') {
+            throw new Error('Transfer reverted on-chain. Check your cUSDC balance.');
+          }
           
           // Look for ConfidentialTransfer event
           const eventSig = keccak256(toBytes('ConfidentialTransfer(address,address,bytes32)'));

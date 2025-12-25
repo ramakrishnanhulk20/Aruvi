@@ -203,7 +203,7 @@ import { verifyPayment } from '@aruvi/sdk';
 async function handlePaymentWebhook(paymentId) {
   const result = await verifyPayment(paymentId, {
     rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY',
-    gatewayAddress: '0x05798f2304A5B9263243C8002c87D4f59546958D',
+    gatewayAddress: '0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b',
   });
 
   if (result.verified) {
@@ -221,7 +221,7 @@ async function handlePaymentWebhook(paymentId) {
 
 | Contract | Address |
 |----------|---------|
-| AruviPaymentGateway | `0x05798f2304A5B9263243C8002c87D4f59546958D` |
+| AruviPaymentGateway | `0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b` |
 | ConfidentialUSDCWrapper | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` |
 | USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
 

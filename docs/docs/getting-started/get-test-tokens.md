@@ -60,8 +60,8 @@ If you need to add tokens to MetaMask manually:
 
 | Token | Address |
 |-------|---------|
-| Test USDC | `0x0D26Bc297A3ca836F68c37E8CAFf95C4F96Cd743` |
-| Confidential USDC | `0x7df31ba1e1e6a2A7e6f29FB4ED2F3ED7C5F9E9A5` |
+| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
+| Confidential USDC | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` |
 
 **To add to MetaMask:**
 1. Open MetaMask → Assets → Import tokens

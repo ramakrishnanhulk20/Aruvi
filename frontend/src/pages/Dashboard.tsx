@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   Send, 
   Download, 
@@ -22,7 +23,9 @@ import {
   ExternalLink,
   QrCode,
   AlertCircle,
-  RotateCcw
+  RotateCcw,
+  X,
+  Users
 } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
@@ -34,6 +37,8 @@ import { useAruviGateway } from '../hooks/useAruviGateway';
 export function Dashboard() {
   const { address } = useAccount();
   const [showBalance, setShowBalance] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
   
   // Real blockchain hooks
   const { isReady: fhevmReady, isLoading: fhevmLoading, error: fhevmError, initialize } = useFhevm();
@@ -107,6 +112,35 @@ export function Dashboard() {
       navigator.clipboard.writeText(address);
       toast.success('Address copied!');
     }
+  };
+
+  const handleShowQRCode = () => {
+    setShowQRModal(true);
+  };
+
+  const handleDownloadQR = () => {
+    if (!qrRef.current) return;
+    
+    const svg = qrRef.current.querySelector('svg');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const pngFile = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `aruvi-address-${address?.slice(0, 8)}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+    
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
   };
 
   return (
@@ -243,6 +277,12 @@ export function Dashboard() {
                       <Button className="bg-white text-paypal-blue hover:bg-white/90 shadow-lg shadow-black/10 px-6">
                         <Send className="w-4 h-4 mr-2" />
                         Send
+                      </Button>
+                    </Link>
+                    <Link to="/multi-send">
+                      <Button className="bg-white/20 text-white hover:bg-white/30 border-0 backdrop-blur-sm px-6">
+                        <Users className="w-4 h-4 mr-2" />
+                        Multi-Send
                       </Button>
                     </Link>
                     <Link to="/request">
@@ -489,7 +529,10 @@ export function Dashboard() {
                     <Copy className="w-4 h-4 text-gray-500" />
                   </button>
                 </div>
-                <button className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition-colors">
+                <button 
+                  onClick={handleShowQRCode}
+                  className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition-colors"
+                >
                   <QrCode className="w-5 h-5" />
                   Show QR Code
                 </button>
@@ -522,6 +565,77 @@ export function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* QR Code Modal */}
+      <AnimatePresence>
+        {showQRModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={() => setShowQRModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-900">Your Wallet QR</h3>
+                  <button
+                    onClick={() => setShowQRModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+                
+                <div ref={qrRef} className="bg-white p-6 rounded-xl border-2 border-gray-100 flex justify-center mb-6">
+                  <QRCodeSVG
+                    value={address || ''}
+                    size={200}
+                    level="H"
+                    includeMargin
+                    bgColor="#ffffff"
+                    fgColor="#001435"
+                  />
+                </div>
+                
+                <p className="text-center text-sm text-gray-500 mb-6">
+                  Scan to get your wallet address
+                </p>
+                
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => {
+                      if (address) {
+                        navigator.clipboard.writeText(address);
+                        toast.success('Address copied!');
+                      }
+                    }}
+                    variant="outline"
+                    className="flex-1 border-2 border-gray-200"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy
+                  </Button>
+                  <Button
+                    onClick={handleDownloadQR}
+                    className="flex-1 bg-gradient-to-r from-paypal-blue to-blue-600"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Footer />
     </div>

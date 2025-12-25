@@ -18,7 +18,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, usePublicClient } from 'wagmi';
 import type { Connector } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseUnits } from 'viem';
@@ -76,6 +76,7 @@ export function Checkout() {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
+  const publicClient = usePublicClient();
   
   const { send, fhevmReady, approveGateway, isOperatorApproved } = useAruviGateway();
   const { 
@@ -213,8 +214,20 @@ export function Checkout() {
           });
         }
 
-        // Wait for confirmation and extract payment ID
-        // In production, we'd watch for the PaymentSent event
+        // Wait for confirmation and verify transaction succeeded
+        let blockNumber = 0;
+        if (publicClient) {
+          const receipt = await publicClient.waitForTransactionReceipt({ hash: result.hash });
+          
+          // Check transaction status - CRITICAL!
+          if (receipt.status === 'reverted') {
+            throw new Error('Payment transaction reverted on-chain. Check your balance and operator approval.');
+          }
+          
+          blockNumber = Number(receipt.blockNumber);
+        }
+
+        // Extract payment ID - only reached if transaction succeeded
         const extractedPaymentId = result.id || `0x${result.hash.slice(2, 66)}` as `0x${string}`;
         setPaymentId(extractedPaymentId);
 
@@ -229,7 +242,7 @@ export function Checkout() {
             transactionHash: result.hash,
             amount: checkoutData.amount,
             customerAddress: address,
-            blockNumber: 0, // Would be filled from receipt
+            blockNumber: blockNumber,
             timestamp: Date.now(),
             reference: checkoutData.reference,
             metadata: checkoutData.metadata,
@@ -259,7 +272,7 @@ export function Checkout() {
         });
       }
     }
-  }, [checkoutData, address, fhevmReady, isOperatorApproved, approveGateway, send]);
+  }, [checkoutData, address, fhevmReady, isOperatorApproved, approveGateway, send, publicClient]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {

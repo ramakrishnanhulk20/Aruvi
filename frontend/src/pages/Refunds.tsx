@@ -490,15 +490,27 @@ export function Refunds() {
                       <div className="w-16 h-16 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <AlertCircle className="w-8 h-8 text-yellow-600" />
                       </div>
-                      <p className="text-center text-gray-600 mb-6">
-                        You are about to refund this payment. The full encrypted amount will be returned to:
+                      <p className="text-center text-gray-600 mb-4">
+                        You are about to issue a full refund for this payment.
                       </p>
-                      <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                        <p className="text-sm text-gray-500 mb-1">Recipient (Sender)</p>
+                      <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                        <p className="text-sm text-gray-500 mb-1">Payment ID</p>
+                        <p className="font-mono text-gray-700 text-sm truncate">{selectedPayment.paymentId}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                        <p className="text-sm text-gray-500 mb-1">Recipient (Original Sender)</p>
                         <p className="font-mono text-gray-900">{formatAddress(selectedPayment.sender, 10)}</p>
                       </div>
-                      <p className="text-sm text-gray-500 text-center mb-6">
-                        This action cannot be undone.
+                      <div className="bg-blue-50 rounded-xl p-4 mb-6">
+                        <div className="flex items-start gap-2">
+                          <Info className="w-4 h-4 text-paypal-blue mt-0.5 flex-shrink-0" />
+                          <p className="text-sm text-paypal-blue">
+                            The full encrypted amount will be returned. Amounts are kept private and encrypted on-chain for your protection.
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-red-500 text-center mb-6">
+                        ⚠️ This action cannot be undone.
                       </p>
                       <div className="flex gap-3">
                         <Button

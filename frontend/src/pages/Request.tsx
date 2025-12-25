@@ -86,7 +86,7 @@ export function Request() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create request';
       setError(errorMessage);
-      toast.error('Failed to create request', { id: 'create-request' });
+      toast.error(errorMessage, { id: 'create-request' });
       setStep('form');
     }
   };

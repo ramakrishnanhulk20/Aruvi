@@ -107,7 +107,7 @@ export function useConfidentialToken() {
   }, [erc20Balance]);
 
   const formattedDecryptedBalance = useMemo(() => {
-    if (!decryptedBalance) return null;
+    if (decryptedBalance === null || decryptedBalance === undefined) return null;
     return formatUnits(decryptedBalance, TOKEN_CONFIG.decimals);
   }, [decryptedBalance]);
 
@@ -130,7 +130,10 @@ export function useConfidentialToken() {
         });
 
         if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash });
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('USDC approval transaction reverted.');
+          }
         }
 
         await refetchAllowance();
@@ -173,7 +176,10 @@ export function useConfidentialToken() {
         });
 
         if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash });
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('Wrap transaction reverted. Check USDC balance and approval.');
+          }
         }
 
         await Promise.all([refetchErc20(), refetchConfidential()]);
@@ -218,7 +224,10 @@ export function useConfidentialToken() {
         });
 
         if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash });
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('Unwrap transaction reverted. Check cUSDC balance.');
+          }
         }
 
         await Promise.all([refetchErc20(), refetchConfidential()]);
@@ -258,7 +267,10 @@ export function useConfidentialToken() {
       });
 
       if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (receipt.status === 'reverted') {
+          throw new Error('Set operator transaction reverted.');
+        }
       }
 
       await refetchOperator();
@@ -330,7 +342,10 @@ export function useConfidentialToken() {
         });
 
         if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash });
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('Transfer reverted on-chain. Check your cUSDC balance.');
+          }
         }
 
         await refetchConfidential();

@@ -43,7 +43,10 @@ export function CreatePaymentLink() {
 
   // Generate payment link with requestId (if created on-chain)
   const paymentLink = requestId 
-    ? `${window.location.origin}/pay/${requestId}${description ? `?note=${encodeURIComponent(description)}` : ''}`
+    ? `${window.location.origin}/pay/${requestId}?${[
+        !anyAmount && amount ? `amount=${encodeURIComponent(amount)}` : '',
+        description ? `note=${encodeURIComponent(description)}` : ''
+      ].filter(Boolean).join('&')}`
     : '';
 
   const handleSubmit = async () => {
@@ -77,6 +80,7 @@ export function CreatePaymentLink() {
       });
 
       if (result) {
+        // Only reached if transaction succeeded (createRequest now checks receipt.status)
         setRequestId(result.id);
         setTxHash(result.hash);
         
@@ -98,12 +102,12 @@ export function CreatePaymentLink() {
         toast.success('Payment link created!', { id: 'create-link' });
         setStep('success');
       } else {
-        throw new Error('Failed to create payment link');
+        throw new Error('Failed to create payment link - no result returned');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create payment link';
       setError(errorMessage);
-      toast.error('Failed to create payment link', { id: 'create-link' });
+      toast.error(errorMessage, { id: 'create-link' });
       setStep('details');
     }
   };

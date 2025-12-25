@@ -11,11 +11,11 @@ Technical reference for Aruvi's smart contracts on Sepolia.
 
 | Contract | Address |
 |----------|---------|
-| PaymentGateway | `0x05798f2304A5B9263243C8002c87D4f59546958D` |
-| ConfidentialUSDCWrapper | `0x7df31ba1e1e6a2A7e6f29FB4ED2F3ED7C5F9E9A5` |
+| PaymentGateway | `0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b` |
+| ConfidentialUSDCWrapper | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` |
 | ProductRegistry | `0x...` |
 | RefundManager | `0x...` |
-| Test USDC | `0x0D26Bc297A3ca836F68c37E8CAFf95C4F96Cd743` |
+| USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
 
 ## PaymentGateway
 
@@ -23,37 +23,36 @@ The main entry point for payments.
 
 ### Functions
 
-#### sendConfidential
+#### send
 Send encrypted payment to a recipient.
 
 ```solidity
-function sendConfidential(
-    address to,
-    einput encryptedAmount,
-    bytes calldata inputProof
-) external returns (uint256 paymentId)
+function send(
+    address recipient,
+    externalEuint64 encryptedAmount,
+    bytes calldata proof
+) external returns (bytes32 paymentId)
 ```
 
 **Parameters:**
-- `to`: Recipient address
-- `encryptedAmount`: FHE-encrypted payment amount
-- `inputProof`: Zero-knowledge proof of encryption validity
+- `recipient`: Recipient address
+- `encryptedAmount`: FHE-encrypted payment amount (bytes32)
+- `proof`: Encryption proof from fhevmjs
 
-**Returns:** Unique payment ID
+**Returns:** Unique payment ID (bytes32)
 
-#### createPaymentRequest
-Request payment from another address.
+#### createRequest
+Create a payment request (payment link).
 
 ```solidity
-function createPaymentRequest(
-    address from,
-    einput encryptedAmount,
-    bytes calldata inputProof,
-    bytes32 memo
-) external returns (uint256 requestId)
+function createRequest(
+    externalEuint64 encryptedAmount,
+    bytes calldata proof,
+    uint256 expiresIn
+) external returns (bytes32 requestId)
 ```
 
-#### fulfillPaymentRequest
+#### fulfillRequest
 Pay a pending request.
 
 ```solidity

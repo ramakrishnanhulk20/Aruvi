@@ -36,10 +36,12 @@ The main contract users interact with. Handles:
 - Refund workflows
 
 ```solidity
-contract PaymentGateway {
-    function sendConfidential(address to, einput amount, bytes calldata proof);
-    function createSubscription(address to, einput amount, bytes calldata proof, uint256 interval);
-    function requestRefund(uint256 paymentId, bytes calldata reason);
+contract AruviPaymentGateway {
+    function send(address recipient, externalEuint64 encryptedAmount, bytes calldata proof) returns (bytes32);
+    function createRequest(externalEuint64 encryptedAmount, bytes calldata proof, uint256 expiresIn) returns (bytes32);
+    function fulfillRequest(bytes32 requestId, externalEuint64 encryptedAmount, bytes calldata proof) returns (bytes32);
+    function createSubscription(address recipient, externalEuint64 encryptedAmount, bytes calldata proof, uint256 interval) returns (bytes32);
+    function refund(bytes32 paymentId);
     // ... more functions
 }
 ```
@@ -135,7 +137,7 @@ input.add64(amount); // Encrypt the amount
 const { inputProof, handles } = input.encrypt();
 
 // 4. Send to contract
-await contract.sendConfidential(recipient, handles[0], inputProof);
+await contract.send(recipient, handles[0], inputProof);
 ```
 
 ### Decryption Flow

@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseUnits } from 'viem';
 import toast from 'react-hot-toast';
@@ -53,6 +54,8 @@ export function Pay() {
   const [error, setError] = useState('');
 
   const note = searchParams.get('note') || '';
+  const requestedAmount = searchParams.get('amount') || '';
+  const hasFixedAmount = !!requestedAmount && parseFloat(requestedAmount) > 0;
   const hasCusdcBalance = confidentialBalanceHandle && confidentialBalanceHandle !== ZERO_HANDLE;
   const hasUsdcBalance = formattedErc20Balance && parseFloat(formattedErc20Balance) > 0;
 
@@ -62,6 +65,13 @@ export function Pay() {
       if (!requestId) {
         setStep('error');
         setError('Invalid payment link');
+        return;
+      }
+
+      // Validate requestId is proper bytes32 (66 chars with 0x prefix)
+      if (requestId.length !== 66 || !requestId.startsWith('0x')) {
+        setStep('error');
+        setError('Invalid payment link format');
         return;
       }
 
@@ -103,7 +113,13 @@ export function Pay() {
       toast.error('Please connect your wallet');
       return;
     }
-    setStep('amount');
+    // If there's a fixed amount from URL, skip to confirm
+    if (hasFixedAmount) {
+      setAmount(requestedAmount);
+      setStep('confirm');
+    } else {
+      setStep('amount');
+    }
   };
 
   const handleAmountSubmit = () => {
@@ -139,12 +155,12 @@ export function Pay() {
         toast.success('Payment sent!', { id: 'pay-request' });
         setStep('success');
       } else {
-        throw new Error('Payment failed');
+        throw new Error('Payment failed - no result returned');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Payment failed';
       setError(errorMessage);
-      toast.error('Payment failed', { id: 'pay-request' });
+      toast.error(errorMessage, { id: 'pay-request' });
       setStep('confirm');
     }
   };
@@ -287,6 +303,13 @@ export function Pay() {
                             <p className="text-gray-900 font-medium">{note}</p>
                           </div>
                         )}
+
+                        {hasFixedAmount && (
+                          <div className="pt-4 border-t border-gray-200">
+                            <p className="text-sm text-gray-500 mb-1">Requested Amount</p>
+                            <p className="text-2xl font-bold text-gray-900">{requestedAmount} {TOKEN_CONFIG.symbol}</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Privacy Notice */}
@@ -294,8 +317,11 @@ export function Pay() {
                         <div className="flex items-start gap-3">
                           <Shield className="w-5 h-5 text-paypal-blue flex-shrink-0 mt-0.5" />
                           <p className="text-sm text-gray-600">
-                            The requested amount is <span className="font-semibold text-gray-900">encrypted</span>. 
-                            You'll enter the amount you want to pay.
+                            {hasFixedAmount ? (
+                              <>Your payment will be <span className="font-semibold text-gray-900">encrypted</span> for privacy.</>
+                            ) : (
+                              <>The requested amount is <span className="font-semibold text-gray-900">encrypted</span>. You'll enter the amount you want to pay.</>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -303,12 +329,17 @@ export function Pay() {
                       {!isConnected ? (
                         <div className="text-center py-4">
                           <p className="text-gray-500 mb-4">Connect your wallet to pay</p>
-                          <Button
-                            onClick={() => {/* Wallet connection handled by Header */}}
-                            className="bg-gradient-to-r from-paypal-blue to-blue-600 hover:from-paypal-dark hover:to-blue-700"
-                          >
-                            Connect Wallet
-                          </Button>
+                          <ConnectButton.Custom>
+                            {({ openConnectModal }) => (
+                              <Button
+                                onClick={openConnectModal}
+                                className="bg-gradient-to-r from-paypal-blue to-blue-600 hover:from-paypal-dark hover:to-blue-700"
+                              >
+                                <Wallet className="w-5 h-5 mr-2" />
+                                Connect Wallet
+                              </Button>
+                            )}
+                          </ConnectButton.Custom>
                         </div>
                       ) : (
                         <Button

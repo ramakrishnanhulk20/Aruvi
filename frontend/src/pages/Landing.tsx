@@ -180,41 +180,71 @@ const PhoneMockup = () => (
 );
 
 // Feature Card Component (Horizontal Scroll)
-const FeatureCard = ({ title, icon: Icon, index }: { title: string; icon: React.ElementType; index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 40 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: "-100px" }}
-    transition={{ duration: 0.6, delay: index * 0.15, ease: [0.22, 1, 0.36, 1] }}
-    whileHover={{ y: -8, transition: { duration: 0.2 } }}
-    className="flex-shrink-0 w-[320px] sm:w-[380px] bg-white rounded-2xl p-8 cursor-pointer group"
-  >
-    <h3 className="text-2xl font-bold text-paypal-navy mb-24">{title}</h3>
-    <div className="flex items-center justify-between">
-      <div className="w-12 h-12 bg-paypal-navy/10 rounded-full flex items-center justify-center group-hover:bg-paypal-navy/20 transition-colors">
-        <Icon className="w-6 h-6 text-paypal-navy" />
-      </div>
-      <div className="w-12 h-12 bg-paypal-navy/10 rounded-full flex items-center justify-center group-hover:bg-paypal-navy group-hover:text-white transition-all">
-        <ArrowRight className="w-5 h-5 text-paypal-navy group-hover:text-white transition-colors" />
-      </div>
-    </div>
-  </motion.div>
-);
-
-// Link Card Component
-const LinkCard = ({ title, href }: { title: string; href: string }) => (
+const FeatureCard = ({ title, icon: Icon, index, href }: { title: string; icon: React.ElementType; index: number; href: string }) => (
   <Link to={href}>
     <motion.div
-      whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-      className="bg-white border border-gray-200 rounded-xl p-6 flex items-center justify-between hover:border-paypal-blue hover:shadow-lg transition-all cursor-pointer"
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-100px" }}
+      transition={{ duration: 0.6, delay: index * 0.15, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -8, transition: { duration: 0.2 } }}
+      className="flex-shrink-0 w-[320px] sm:w-[380px] bg-white rounded-2xl p-8 cursor-pointer group"
     >
-      <span className="font-semibold text-paypal-navy text-lg">{title}</span>
-      <div className="w-10 h-10 bg-paypal-navy/10 rounded-full flex items-center justify-center">
-        <ArrowRight className="w-5 h-5 text-paypal-navy" />
+      <h3 className="text-2xl font-bold text-paypal-navy mb-24">{title}</h3>
+      <div className="flex items-center justify-between">
+        <div className="w-12 h-12 bg-paypal-navy/10 rounded-full flex items-center justify-center group-hover:bg-paypal-navy/20 transition-colors">
+          <Icon className="w-6 h-6 text-paypal-navy" />
+        </div>
+        <div className="w-12 h-12 bg-paypal-navy/10 rounded-full flex items-center justify-center group-hover:bg-paypal-navy group-hover:text-white transition-all">
+          <ArrowRight className="w-5 h-5 text-paypal-navy group-hover:text-white transition-colors" />
+        </div>
       </div>
     </motion.div>
   </Link>
 );
+
+// Link Card Component
+const LinkCard = ({ title, href }: { title: string; href: string }) => {
+  const handleClick = (e: React.MouseEvent) => {
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      const element = document.getElementById(href.substring(1));
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
+  if (href.startsWith('#')) {
+    return (
+      <a href={href} onClick={handleClick}>
+        <motion.div
+          whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+          className="bg-white border border-gray-200 rounded-xl p-6 flex items-center justify-between hover:border-paypal-blue hover:shadow-lg transition-all cursor-pointer"
+        >
+          <span className="font-semibold text-paypal-navy text-lg">{title}</span>
+          <div className="w-10 h-10 bg-paypal-navy/10 rounded-full flex items-center justify-center">
+            <ArrowRight className="w-5 h-5 text-paypal-navy" />
+          </div>
+        </motion.div>
+      </a>
+    );
+  }
+
+  return (
+    <Link to={href}>
+      <motion.div
+        whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+        className="bg-white border border-gray-200 rounded-xl p-6 flex items-center justify-between hover:border-paypal-blue hover:shadow-lg transition-all cursor-pointer"
+      >
+        <span className="font-semibold text-paypal-navy text-lg">{title}</span>
+        <div className="w-10 h-10 bg-paypal-navy/10 rounded-full flex items-center justify-center">
+          <ArrowRight className="w-5 h-5 text-paypal-navy" />
+        </div>
+      </motion.div>
+    </Link>
+  );
+};
 
 // Feature Cards Section with Navigation
 const FeatureCardsSection = () => {
@@ -224,10 +254,10 @@ const FeatureCardsSection = () => {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const features = [
-    { title: 'Send with complete privacy', icon: EyeOff },
-    { title: 'Receive encrypted payments', icon: Shield },
-    { title: 'Create payment links', icon: CreditCard },
-    { title: 'Self-custody your funds', icon: Lock },
+    { title: 'Send with complete privacy', icon: EyeOff, href: '/send' },
+    { title: 'Receive encrypted payments', icon: Shield, href: '/request' },
+    { title: 'Create payment links', icon: CreditCard, href: '/business/links/new' },
+    { title: 'Self-custody your funds', icon: Lock, href: '/wallet' },
   ];
 
   const checkScrollPosition = () => {
@@ -306,7 +336,7 @@ const FeatureCardsSection = () => {
         >
           <div className="flex gap-6 px-6 sm:px-8 lg:px-12">
             {features.map((feature, index) => (
-              <FeatureCard key={feature.title} title={feature.title} icon={feature.icon} index={index} />
+              <FeatureCard key={feature.title} title={feature.title} icon={feature.icon} index={index} href={feature.href} />
             ))}
             {/* Spacer for last card visibility */}
             <div className="flex-shrink-0 w-4 sm:w-8 lg:w-12" />

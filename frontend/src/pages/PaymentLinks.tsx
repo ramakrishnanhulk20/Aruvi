@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAccount, usePublicClient } from 'wagmi';
 import { motion } from 'framer-motion';
 import { parseAbiItem } from 'viem';
+import toast from 'react-hot-toast';
 import { 
   ArrowLeft,
   Plus,
@@ -16,7 +17,10 @@ import {
   Sparkles,
   QrCode,
   Share2,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  ExternalLink,
+  XCircle
 } from 'lucide-react';
 import { Header, Footer } from '../components/layout';
 import { Button, Card } from '../components/ui';
@@ -37,6 +41,15 @@ interface PaymentLink {
   txHash?: string;
 }
 
+// Helper to build payment URL with amount and description
+const buildPaymentUrl = (id: string, amount: string | null, description?: string): string => {
+  const params = new URLSearchParams();
+  if (amount) params.set('amount', amount);
+  if (description) params.set('note', description);
+  const queryString = params.toString();
+  return `${window.location.origin}/pay/${id}${queryString ? `?${queryString}` : ''}`;
+};
+
 // Event signature for RequestCreated
 const REQUEST_CREATED_EVENT = parseAbiItem('event RequestCreated(bytes32 indexed requestId, address indexed requester)');
 const REQUEST_FULFILLED_EVENT = parseAbiItem('event RequestFulfilled(bytes32 indexed requestId, bytes32 indexed paymentId)');
@@ -45,10 +58,12 @@ export function PaymentLinks() {
   const navigate = useNavigate();
   const { address } = useAccount();
   const publicClient = usePublicClient();
-  const { getRequestInfo } = useAruviGateway();
+  const { getRequestInfo, cancelRequest } = useAruviGateway();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Fetch payment links from blockchain events + localStorage
   const fetchPaymentLinks = useCallback(async () => {
@@ -94,11 +109,19 @@ export function PaymentLinks() {
       const chainLinks: PaymentLink[] = [];
       for (const log of logs) {
         const requestId = (log.args as { requestId?: string }).requestId;
-        if (!requestId || savedLinkIds.has(requestId.toLowerCase())) continue;
+        // Validate requestId is proper bytes32 (66 chars with 0x prefix)
+        if (!requestId || requestId === '0x0' || requestId.length !== 66 || savedLinkIds.has(requestId.toLowerCase())) {
+          continue;
+        }
 
         // Get request info to check if fulfilled/expired
-        const info = await getRequestInfo(requestId as `0x${string}`);
-        const isActive = info ? !info.fulfilled && (info.expiresAt === 0n || info.expiresAt > BigInt(Math.floor(Date.now() / 1000))) : true;
+        let isActive = true;
+        try {
+          const info = await getRequestInfo(requestId as `0x${string}`);
+          isActive = info ? !info.fulfilled && (info.expiresAt === 0n || info.expiresAt > BigInt(Math.floor(Date.now() / 1000))) : true;
+        } catch (e) {
+          console.warn('Failed to get request info for', requestId, e);
+        }
 
         chainLinks.push({
           id: requestId,
@@ -109,20 +132,28 @@ export function PaymentLinks() {
           payments: paymentCounts[requestId.toLowerCase()] || 0,
           totalReceived: '••••',
           isActive,
-          url: `${window.location.origin}/pay/${requestId}`,
+          url: buildPaymentUrl(requestId, null), // No amount for chain-discovered links
           txHash: log.transactionHash,
         });
       }
 
       // Update saved links with payment counts and active status
       const updatedSavedLinks = await Promise.all(savedLinks.map(async (link) => {
-        const info = await getRequestInfo(link.id as `0x${string}`);
-        const isActive = info ? !info.fulfilled && (info.expiresAt === 0n || info.expiresAt > BigInt(Math.floor(Date.now() / 1000))) : link.isActive;
+        let isActive = link.isActive;
+        // Only query if valid bytes32 requestId
+        if (link.id && link.id !== '0x0' && link.id.length === 66) {
+          try {
+            const info = await getRequestInfo(link.id as `0x${string}`);
+            isActive = info ? !info.fulfilled && (info.expiresAt === 0n || info.expiresAt > BigInt(Math.floor(Date.now() / 1000))) : link.isActive;
+          } catch (e) {
+            console.warn('Failed to get request info for', link.id, e);
+          }
+        }
         return {
           ...link,
           payments: paymentCounts[link.id.toLowerCase()] || link.payments,
           isActive,
-          url: `${window.location.origin}/pay/${link.id}`,
+          url: buildPaymentUrl(link.id, link.amount, link.description),
         };
       }));
 
@@ -137,7 +168,7 @@ export function PaymentLinks() {
       const savedLinks: PaymentLink[] = JSON.parse(localStorage.getItem('aruvi_payment_links') || '[]');
       setPaymentLinks(savedLinks.map(l => ({
         ...l,
-        url: `${window.location.origin}/pay/${l.id}`,
+        url: buildPaymentUrl(l.id, l.amount, l.description),
       })));
     } finally {
       setIsLoading(false);
@@ -154,6 +185,59 @@ export function PaymentLinks() {
       setCopiedId(link.id);
       setTimeout(() => setCopiedId(null), 2000);
     }
+  };
+
+  const handleDelete = async (link: PaymentLink) => {
+    if (!link.isActive) {
+      // Just remove from localStorage if already inactive
+      const savedLinks = JSON.parse(localStorage.getItem('aruvi_payment_links') || '[]');
+      const updatedLinks = savedLinks.filter((l: PaymentLink) => l.id !== link.id);
+      localStorage.setItem('aruvi_payment_links', JSON.stringify(updatedLinks));
+      setPaymentLinks(prev => prev.filter(l => l.id !== link.id));
+      toast.success('Payment link removed');
+      setMenuOpen(null);
+      return;
+    }
+
+    setIsDeleting(link.id);
+    try {
+      // Validate requestId is proper bytes32 (66 chars with 0x prefix)
+      if (!link.id || link.id.length !== 66 || !link.id.startsWith('0x')) {
+        throw new Error('Invalid request ID format. Cannot cancel this payment link on-chain.');
+      }
+      
+      toast.loading('Cancelling payment link...', { id: 'cancel-link' });
+      
+      // Cancel on-chain
+      await cancelRequest(link.id as `0x${string}`);
+      
+      // Remove from localStorage
+      const savedLinks = JSON.parse(localStorage.getItem('aruvi_payment_links') || '[]');
+      const updatedLinks = savedLinks.filter((l: PaymentLink) => l.id !== link.id);
+      localStorage.setItem('aruvi_payment_links', JSON.stringify(updatedLinks));
+      
+      setPaymentLinks(prev => prev.filter(l => l.id !== link.id));
+      toast.success('Payment link cancelled', { id: 'cancel-link' });
+    } catch (error) {
+      console.error('Failed to cancel request:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cancel payment link';
+      toast.error(errorMessage, { id: 'cancel-link' });
+    } finally {
+      setIsDeleting(null);
+      setMenuOpen(null);
+    }
+  };
+
+  const handleView = (link: PaymentLink) => {
+    window.open(link.url, '_blank');
+    setMenuOpen(null);
+  };
+
+  const handleViewTransaction = (link: PaymentLink) => {
+    if (link.txHash) {
+      window.open(`https://sepolia.etherscan.io/tx/${link.txHash}`, '_blank');
+    }
+    setMenuOpen(null);
   };
 
   return (
@@ -235,7 +319,7 @@ export function PaymentLinks() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
           >
-            <Card className="overflow-hidden">
+            <Card className="overflow-visible">
               {isLoading ? (
                 <div className="p-12 text-center">
                   <motion.div
@@ -352,9 +436,78 @@ export function PaymentLinks() {
                               </>
                             )}
                           </Button>
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                            <MoreHorizontal className="w-5 h-5 text-gray-400" />
-                          </button>
+                          <div className="relative">
+                            <button 
+                              onClick={() => setMenuOpen(menuOpen === link.id ? null : link.id)}
+                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                              <MoreHorizontal className="w-5 h-5 text-gray-400" />
+                            </button>
+                            
+                            {/* Dropdown Menu - using fixed position to escape any overflow:hidden */}
+                            {menuOpen === link.id && (
+                              <>
+                                {/* Backdrop to close menu */}
+                                <div 
+                                  className="fixed inset-0" 
+                                  style={{ zIndex: 9998 }}
+                                  onClick={() => setMenuOpen(null)}
+                                />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="absolute right-0 mt-2 w-48 bg-white rounded-xl border border-gray-200 py-2"
+                                  style={{ 
+                                    zIndex: 9999,
+                                    boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                                    top: '100%',
+                                  }}
+                                >
+                                    <button
+                                      onClick={() => handleView(link)}
+                                      className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                                    >
+                                      <Eye className="w-4 h-4 text-gray-400" />
+                                      View Link
+                                    </button>
+                                    {link.txHash && (
+                                      <button
+                                        onClick={() => handleViewTransaction(link)}
+                                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                                      >
+                                        <ExternalLink className="w-4 h-4 text-gray-400" />
+                                        View on Etherscan
+                                      </button>
+                                    )}
+                                    <div className="border-t border-gray-100 my-1" />
+                                    <button
+                                      onClick={() => handleDelete(link)}
+                                      disabled={isDeleting === link.id}
+                                      className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors disabled:opacity-50"
+                                    >
+                                      {isDeleting === link.id ? (
+                                        <>
+                                          <RefreshCw className="w-4 h-4 animate-spin" />
+                                          Cancelling...
+                                        </>
+                                      ) : link.isActive ? (
+                                        <>
+                                          <XCircle className="w-4 h-4" />
+                                          Cancel Request
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Trash2 className="w-4 h-4" />
+                                          Remove
+                                        </>
+                                      )}
+                                    </button>
+                                  </motion.div>
+                                </>
+                              )}
+                          </div>
                         </div>
                       </div>
                     </div>

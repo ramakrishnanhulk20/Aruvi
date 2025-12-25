@@ -14,7 +14,7 @@ export interface HandleContractPair {
 
 export function useFhevmDecrypt() {
   const { instance, isReady, error } = useFhevm();
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const { signTypedDataAsync } = useSignTypedData();
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptError, setDecryptError] = useState<Error | null>(null);
@@ -30,8 +30,8 @@ export function useFhevmDecrypt() {
       handle: string,
       contractAddress: string
     ): Promise<bigint | null> => {
-      if (!instance || !address || !isReady) {
-        setDecryptError(new Error('FHEVM not ready'));
+      if (!instance || !address || !isReady || !isConnected) {
+        setDecryptError(new Error('FHEVM not ready or wallet not connected'));
         return null;
       }
 
@@ -98,7 +98,7 @@ export function useFhevmDecrypt() {
         setIsDecrypting(false);
       }
     },
-    [instance, address, isReady, signTypedDataAsync]
+    [instance, address, isReady, isConnected, signTypedDataAsync]
   );
 
   /**
@@ -110,8 +110,8 @@ export function useFhevmDecrypt() {
     async (
       pairs: HandleContractPair[]
     ): Promise<Record<string, bigint> | null> => {
-      if (!instance || !address || !isReady) {
-        setDecryptError(new Error('FHEVM not ready'));
+      if (!instance || !address || !isReady || !isConnected) {
+        setDecryptError(new Error('FHEVM not ready or wallet not connected'));
         return null;
       }
 
@@ -180,7 +180,7 @@ export function useFhevmDecrypt() {
         setIsDecrypting(false);
       }
     },
-    [instance, address, isReady, signTypedDataAsync]
+    [instance, address, isReady, isConnected, signTypedDataAsync]
   );
 
   return {

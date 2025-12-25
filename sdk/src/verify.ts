@@ -43,9 +43,9 @@ export async function verifyPayment(options: VerifyOptions): Promise<Verificatio
   const contractAddress = CONTRACTS[env].PaymentGateway;
 
   try {
-    // Encode the function call for getPayment(bytes32 paymentId)
-    // Function selector: keccak256("getPayment(bytes32)").slice(0, 10)
-    const functionSelector = '0x51cff8d9'; // getPayment(bytes32)
+    // Encode the function call for getPaymentInfo(bytes32 paymentId)
+    // Function selector: keccak256("getPaymentInfo(bytes32)").slice(0, 10)
+    const functionSelector = '0xc6610657'; // getPaymentInfo(bytes32)
     const encodedPaymentId = options.paymentId.slice(2).padStart(64, '0');
     const data = functionSelector + encodedPaymentId;
 
@@ -94,30 +94,22 @@ export async function verifyPayment(options: VerifyOptions): Promise<Verificatio
       };
     }
 
-    // Validate amount (if provided)
-    if (options.expectedAmount) {
-      const expectedWei = parseUnits(options.expectedAmount, 6); // USDC has 6 decimals
-      if (decoded.amountWei !== expectedWei) {
-        return {
-          verified: false,
-          error: 'Amount mismatch',
-        };
-      }
-    }
-
-    // Check payment status (1 = completed)
-    if (decoded.status !== 1) {
+    // Check if payment was refunded
+    if (decoded.isRefunded) {
       return {
         verified: false,
-        error: 'Payment not completed',
+        error: 'Payment was refunded',
       };
     }
+
+    // Note: Amount is encrypted on-chain, so we cannot verify it here
+    // The amount validation must be done through other means if needed
 
     const payment: PaymentResult = {
       success: true,
       paymentId: options.paymentId,
       transactionHash: '0x' as `0x${string}`, // Would need additional lookup
-      amount: formatUnits(decoded.amountWei, 6),
+      amount: '0', // Amount is encrypted - cannot be read from chain
       customerAddress: decoded.sender as `0x${string}`,
       merchantAddress: decoded.recipient as `0x${string}`,
       blockNumber: 0, // Would need additional lookup
@@ -138,13 +130,14 @@ export async function verifyPayment(options: VerifyOptions): Promise<Verificatio
 
 /**
  * Decode payment result from RPC response
+ * Returns: (address sender, address recipient, address token, uint256 timestamp, bool isRefunded)
  */
 function decodePaymentResult(hexData: string): {
   sender: string;
   recipient: string;
-  amountWei: bigint;
+  token: string;
   timestamp: number;
-  status: number;
+  isRefunded: boolean;
 } | null {
   if (!hexData || hexData === '0x' || hexData.length < 66) {
     return null;
@@ -153,19 +146,19 @@ function decodePaymentResult(hexData: string): {
   // Remove '0x' prefix
   const data = hexData.slice(2);
 
-  // Decode tuple: (address sender, address recipient, uint256 amount, uint256 timestamp, uint8 status)
+  // Decode: (address sender, address recipient, address token, uint256 timestamp, bool isRefunded)
   const sender = '0x' + data.slice(24, 64);
   const recipient = '0x' + data.slice(88, 128);
-  const amountWei = BigInt('0x' + data.slice(128, 192));
+  const token = '0x' + data.slice(152, 192);
   const timestamp = parseInt(data.slice(192, 256), 16);
-  const status = parseInt(data.slice(256, 320), 16);
+  const isRefunded = parseInt(data.slice(256, 320), 16) !== 0;
 
   // Check if payment exists (sender should not be zero address)
   if (sender === '0x0000000000000000000000000000000000000000') {
     return null;
   }
 
-  return { sender, recipient, amountWei, timestamp, status };
+  return { sender, recipient, token, timestamp, isRefunded };
 }
 
 /**

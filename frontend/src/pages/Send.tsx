@@ -105,13 +105,13 @@ export function Send() {
         toast.success('Payment sent!', { id: 'send' });
         setStep('success');
       } else {
-        toast.error('Transaction failed', { id: 'send' });
+        toast.error('Transaction failed - no result returned', { id: 'send' });
         setError('Transaction failed. Please try again.');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Transaction failed';
       setError(errorMessage);
-      toast.error('Transaction failed', { id: 'send' });
+      toast.error(errorMessage, { id: 'send' });
     }
   };
 

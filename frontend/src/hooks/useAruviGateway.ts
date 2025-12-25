@@ -5,14 +5,14 @@
 
 import { useCallback, useState } from 'react';
 import { useAccount, useReadContract, useWriteContract, usePublicClient } from 'wagmi';
-import { parseAbi, keccak256, toBytes } from 'viem';
+import { keccak256, toBytes } from 'viem';
 import { CONTRACTS, ARUVI_GATEWAY_ABI, WRAPPER_ABI } from '../lib/contracts';
 import { useFhevmEncrypt } from './useFhevmEncrypt';
 import { useFhevm } from '../providers/useFhevmContext';
 
-// Parse the ABIs once
-const GATEWAY_ABI = parseAbi(ARUVI_GATEWAY_ABI);
-const WRAPPER_ABI_PARSED = parseAbi(WRAPPER_ABI);
+// Use ABIs directly (JSON format doesn't need parseAbi)
+const GATEWAY_ABI = ARUVI_GATEWAY_ABI;
+const WRAPPER_ABI_PARSED = WRAPPER_ABI;
 
 // Operator expiry - 10 years from now (effectively permanent)
 // uint48 max is ~8.9 million years from Unix epoch, so this is safe
@@ -146,9 +146,12 @@ export function useAruviGateway() {
         args: [CONTRACTS.ARUVI_GATEWAY, OPERATOR_EXPIRY],
       });
 
-      // Wait for confirmation
+      // Wait for confirmation and check status
       if (publicClient) {
-        await publicClient.waitForTransactionReceipt({ hash });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (receipt.status === 'reverted') {
+          throw new Error('Gateway approval transaction reverted.');
+        }
         await refetchOperator();
       }
 
@@ -209,15 +212,24 @@ export function useAruviGateway() {
           gas: 2000000n, // FHE operations are gas-intensive
         });
 
-        // Extract paymentId from event
+        // Wait for receipt and verify transaction succeeded
         let paymentId: `0x${string}` = '0x0';
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          
+          // Check transaction status - CRITICAL!
+          if (receipt.status === 'reverted') {
+            throw new Error('Transaction reverted on-chain. Check your balance and operator approval.');
+          }
+          
+          // Extract paymentId from event
           const event = receipt.logs.find(
             log => log.topics[0] === keccak256(toBytes('PaymentSent(bytes32,address,address)'))
           );
           if (event?.topics[1]) {
             paymentId = event.topics[1] as `0x${string}`;
+          } else {
+            throw new Error('Transaction succeeded but no PaymentSent event found. Payment may have failed.');
           }
         }
 
@@ -252,14 +264,25 @@ export function useAruviGateway() {
       setIsProcessing(true);
 
       try {
+        // Ensure Gateway is approved as operator (same as sendMoney)
+        if (!isOperator) {
+          console.log('[Aruvi] Gateway not approved, approving...');
+          await approveGateway();
+          // Wait for approval to be processed
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
         console.log('[Aruvi] Encrypting', amounts.length, 'amounts for GATEWAY...');
         
+        // Parallelize encryption for better performance
+        const encryptedResults = await Promise.all(
+          amounts.map(amount => encryptAmount(amount, CONTRACTS.ARUVI_GATEWAY))
+        );
+
         const encryptedAmounts: `0x${string}`[] = [];
         const proofs: `0x${string}`[] = [];
 
-        for (const amount of amounts) {
-          // TWO-STEP FHE PATTERN: Encrypt for GATEWAY!
-          const encrypted = await encryptAmount(amount, CONTRACTS.ARUVI_GATEWAY);
+        for (const encrypted of encryptedResults) {
           if (!encrypted || !encrypted.handles[0]) {
             throw new Error('Failed to encrypt amount');
           }
@@ -276,6 +299,14 @@ export function useAruviGateway() {
           gas: BigInt(500000 * recipients.length),
         });
 
+        // Wait for receipt and verify transaction succeeded
+        if (publicClient) {
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('Multi-send transaction reverted on-chain. Check balances and approval.');
+          }
+        }
+
         console.log('[Aruvi] Multi-send complete!');
         return { hash, id: hash }; // Use tx hash as ID for multi-send
       } catch (err) {
@@ -285,7 +316,7 @@ export function useAruviGateway() {
         setIsProcessing(false);
       }
     },
-    [address, isConnected, fhevmReady, encryptAmount, writeContractAsync]
+    [address, isConnected, fhevmReady, isOperator, approveGateway, encryptAmount, writeContractAsync]
   );
 
   // ============================================================
@@ -321,15 +352,24 @@ export function useAruviGateway() {
           gas: 500000n,
         });
 
-        // Extract requestId from event
+        // Wait for receipt and verify transaction succeeded
         let requestId: `0x${string}` = '0x0';
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          
+          // Check transaction status - CRITICAL!
+          if (receipt.status === 'reverted') {
+            throw new Error('Transaction reverted on-chain. The contract rejected the request.');
+          }
+          
+          // Extract requestId from event
           const event = receipt.logs.find(
             log => log.topics[0] === keccak256(toBytes('RequestCreated(bytes32,address)'))
           );
           if (event?.topics[1]) {
             requestId = event.topics[1] as `0x${string}`;
+          } else {
+            throw new Error('Transaction succeeded but no RequestCreated event found. Request may have failed.');
           }
         }
 
@@ -355,9 +395,23 @@ export function useAruviGateway() {
         return null;
       }
 
+      // Validate requestId is proper bytes32 (66 chars with 0x prefix)
+      if (!requestId || requestId.length !== 66 || !requestId.startsWith('0x')) {
+        throw new Error(`Invalid requestId format. Expected bytes32 (66 characters), got: ${requestId?.length || 0} characters`);
+      }
+
       setIsProcessing(true);
 
       try {
+        // Check operator approval first - CRITICAL for FHE transfers
+        if (!isOperator) {
+          console.log('[Aruvi] Gateway not approved, requesting approval...');
+          await approveGateway();
+          // Wait for state to propagate on-chain before proceeding
+          console.log('[Aruvi] Waiting for approval to propagate...');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
         console.log('[Aruvi] Fulfilling request', requestId);
         // TWO-STEP FHE PATTERN: Encrypt for GATEWAY!
         const encrypted = await encryptAmount(amount, CONTRACTS.ARUVI_GATEWAY);
@@ -370,18 +424,27 @@ export function useAruviGateway() {
           abi: GATEWAY_ABI,
           functionName: 'fulfillRequest',
           args: [requestId, encrypted.handles[0], encrypted.inputProof],
-          gas: 800000n,
+          gas: 2000000n, // Increased gas for FHE operations
         });
 
-        // Extract paymentId from event
+        // Wait for receipt and verify transaction succeeded
         let paymentId: `0x${string}` = '0x0';
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          
+          // Check transaction status - CRITICAL!
+          if (receipt.status === 'reverted') {
+            throw new Error('Transaction reverted on-chain. Check your balance and operator approval.');
+          }
+          
+          // Extract paymentId from event
           const event = receipt.logs.find(
             log => log.topics[0] === keccak256(toBytes('RequestFulfilled(bytes32,bytes32)'))
           );
           if (event?.topics[2]) {
             paymentId = event.topics[2] as `0x${string}`;
+          } else {
+            throw new Error('Transaction succeeded but no RequestFulfilled event found.');
           }
         }
 
@@ -394,7 +457,7 @@ export function useAruviGateway() {
         setIsProcessing(false);
       }
     },
-    [address, isConnected, fhevmReady, encryptAmount, writeContractAsync, publicClient]
+    [address, isConnected, fhevmReady, isOperator, approveGateway, encryptAmount, writeContractAsync, publicClient]
   );
 
   /**
@@ -406,6 +469,11 @@ export function useAruviGateway() {
         return null;
       }
 
+      // Validate requestId is proper bytes32 (66 chars with 0x prefix)
+      if (!requestId || requestId.length !== 66 || !requestId.startsWith('0x')) {
+        throw new Error(`Invalid requestId format. Expected bytes32 (66 characters), got: ${requestId?.length || 0} characters`);
+      }
+
       try {
         const hash = await writeContractAsync({
           address: CONTRACTS.ARUVI_GATEWAY,
@@ -413,6 +481,15 @@ export function useAruviGateway() {
           functionName: 'cancelRequest',
           args: [requestId],
         });
+        
+        // Wait for receipt and verify transaction succeeded
+        if (publicClient) {
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('Transaction reverted on-chain. You may not own this request.');
+          }
+        }
+        
         console.log('[Aruvi] Request cancelled');
         return hash;
       } catch (err) {
@@ -420,7 +497,7 @@ export function useAruviGateway() {
         throw err;
       }
     },
-    [address, isConnected, writeContractAsync]
+    [address, isConnected, writeContractAsync, publicClient]
   );
 
   // ============================================================
@@ -456,15 +533,22 @@ export function useAruviGateway() {
           gas: 600000n,
         });
 
-        // Extract subscriptionId from event
+        // Wait for receipt and verify transaction succeeded
         let subscriptionId: `0x${string}` = '0x0';
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          
+          if (receipt.status === 'reverted') {
+            throw new Error('Subscription creation reverted on-chain. Check balance and approval.');
+          }
+          
           const event = receipt.logs.find(
             log => log.topics[0] === keccak256(toBytes('SubscriptionCreated(bytes32,address,address)'))
           );
           if (event?.topics[1]) {
             subscriptionId = event.topics[1] as `0x${string}`;
+          } else {
+            throw new Error('Transaction succeeded but no SubscriptionCreated event found.');
           }
         }
 
@@ -489,6 +573,11 @@ export function useAruviGateway() {
         return null;
       }
 
+      // Validate subscriptionId is proper bytes32 (66 chars with 0x prefix)
+      if (!subscriptionId || subscriptionId.length !== 66 || !subscriptionId.startsWith('0x')) {
+        throw new Error(`Invalid subscriptionId format. Expected bytes32 (66 characters), got: ${subscriptionId?.length || 0} characters`);
+      }
+
       setIsProcessing(true);
 
       try {
@@ -501,10 +590,15 @@ export function useAruviGateway() {
           gas: 800000n,
         });
 
-        // Extract paymentId from event
+        // Wait for receipt and verify transaction succeeded
         let paymentId: `0x${string}` = '0x0';
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          
+          if (receipt.status === 'reverted') {
+            throw new Error('Subscription payment reverted. Check balance and subscription status.');
+          }
+          
           const event = receipt.logs.find(
             log => log.topics[0] === keccak256(toBytes('SubscriptionPaid(bytes32,bytes32)'))
           );
@@ -534,6 +628,11 @@ export function useAruviGateway() {
         return null;
       }
 
+      // Validate subscriptionId is proper bytes32 (66 chars with 0x prefix)
+      if (!subscriptionId || subscriptionId.length !== 66 || !subscriptionId.startsWith('0x')) {
+        throw new Error(`Invalid subscriptionId format. Expected bytes32 (66 characters), got: ${subscriptionId?.length || 0} characters`);
+      }
+
       try {
         const hash = await writeContractAsync({
           address: CONTRACTS.ARUVI_GATEWAY,
@@ -541,6 +640,15 @@ export function useAruviGateway() {
           functionName: 'cancelSubscription',
           args: [subscriptionId],
         });
+        
+        // Wait for receipt and verify transaction succeeded
+        if (publicClient) {
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('Cancel subscription reverted. You may not own this subscription.');
+          }
+        }
+        
         console.log('[Aruvi] Subscription cancelled');
         return hash;
       } catch (err) {
@@ -548,7 +656,7 @@ export function useAruviGateway() {
         throw err;
       }
     },
-    [address, isConnected, writeContractAsync]
+    [address, isConnected, writeContractAsync, publicClient]
   );
 
   // ============================================================
@@ -564,9 +672,21 @@ export function useAruviGateway() {
         return null;
       }
 
+      // Validate paymentId is proper bytes32 (66 chars with 0x prefix)
+      if (!paymentId || paymentId.length !== 66 || !paymentId.startsWith('0x')) {
+        throw new Error(`Invalid paymentId format. Expected bytes32 (66 characters), got: ${paymentId?.length || 0} characters`);
+      }
+
       setIsProcessing(true);
 
       try {
+        // Ensure Gateway is approved as operator before refund
+        if (!isOperator) {
+          console.log('[Aruvi] Gateway not approved, approving...');
+          await approveGateway();
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
         console.log('[Aruvi] Refunding payment', paymentId);
         const hash = await writeContractAsync({
           address: CONTRACTS.ARUVI_GATEWAY,
@@ -575,6 +695,14 @@ export function useAruviGateway() {
           args: [paymentId],
           gas: 500000n,
         });
+
+        // Wait for receipt and verify transaction succeeded
+        if (publicClient) {
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status === 'reverted') {
+            throw new Error('Refund transaction reverted on-chain. You may not be the recipient or payment already refunded.');
+          }
+        }
 
         console.log('[Aruvi] Refund processed!');
         return hash;
@@ -585,7 +713,7 @@ export function useAruviGateway() {
         setIsProcessing(false);
       }
     },
-    [address, isConnected, writeContractAsync]
+    [address, isConnected, isOperator, approveGateway, writeContractAsync, publicClient]
   );
 
   // ============================================================
@@ -598,6 +726,12 @@ export function useAruviGateway() {
   const getPaymentInfo = useCallback(
     async (paymentId: `0x${string}`): Promise<PaymentInfo | null> => {
       if (!publicClient) return null;
+
+      // Validate paymentId is proper bytes32 (66 chars with 0x prefix)
+      if (!paymentId || paymentId.length !== 66 || !paymentId.startsWith('0x')) {
+        console.warn(`[Aruvi] Invalid paymentId format: ${paymentId}`);
+        return null;
+      }
 
       try {
         const result = await publicClient.readContract({
@@ -631,6 +765,12 @@ export function useAruviGateway() {
     async (requestId: `0x${string}`): Promise<RequestInfo | null> => {
       if (!publicClient) return null;
 
+      // Validate requestId is proper bytes32 (66 chars with 0x prefix)
+      if (!requestId || requestId.length !== 66 || !requestId.startsWith('0x')) {
+        console.warn(`[Aruvi] Invalid requestId format: ${requestId}`);
+        return null;
+      }
+
       try {
         const result = await publicClient.readContract({
           address: CONTRACTS.ARUVI_GATEWAY,
@@ -662,6 +802,12 @@ export function useAruviGateway() {
   const getSubscriptionInfo = useCallback(
     async (subscriptionId: `0x${string}`): Promise<SubscriptionInfo | null> => {
       if (!publicClient) return null;
+
+      // Validate subscriptionId is proper bytes32 (66 chars with 0x prefix)
+      if (!subscriptionId || subscriptionId.length !== 66 || !subscriptionId.startsWith('0x')) {
+        console.warn(`[Aruvi] Invalid subscriptionId format: ${subscriptionId}`);
+        return null;
+      }
 
       try {
         const result = await publicClient.readContract({

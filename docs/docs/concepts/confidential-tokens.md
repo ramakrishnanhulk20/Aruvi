@@ -87,7 +87,7 @@ Because FHE operations can be complex, Aruvi uses a two-step pattern for some op
 ### Step 1: Initiate
 Create the transfer with encrypted amount:
 ```javascript
-gateway.sendConfidential(recipient, encryptedAmount);
+gateway.send(recipient, encryptedAmount, proof);
 ```
 
 ### Step 2: Execute

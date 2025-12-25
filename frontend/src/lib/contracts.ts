@@ -1,15 +1,14 @@
 // ============================================================
 // Aruvi Contract Configuration
 // Privacy-first payment gateway on Zama fhEVM (Sepolia)
+// AUTO-GENERATED FROM DEPLOYMENT - DO NOT EDIT MANUALLY
 // ============================================================
 
-// Contract addresses for Sepolia
+// Contract addresses for Sepolia (from deployments/sepolia/*.json)
 export const CONTRACTS = {
-  // Main payment gateway (privacy-first, security hardened)
-  // TWO-STEP FHE PATTERN: Gateway calls FHE.fromExternal() directly
-  // + Token ACL: FHE.allowTransient(amount, address(token))
-  ARUVI_GATEWAY: '0x05798f2304A5B9263243C8002c87D4f59546958D' as const,
-  // Confidential USDC wrapper (ERC7984)
+  // AruviPaymentGateway - Main payment gateway
+  ARUVI_GATEWAY: '0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b' as const,
+  // ConfidentialUSDCWrapper - ERC7984 confidential token wrapper
   WRAPPER: '0xf99376BE228E8212C3C9b8B746683C96C1517e8B' as const,
   // Circle test USDC on Sepolia
   USDC: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const,
@@ -33,79 +32,472 @@ export const TOKEN_CONFIG = {
 };
 
 // ============================================================
-// ABIs
+// ABIs - Extracted from deployed contracts
 // ============================================================
 
 // ABI for ERC20 (USDC)
 export const ERC20_ABI = [
-  'function balanceOf(address) view returns (uint256)',
-  'function allowance(address owner, address spender) view returns (uint256)',
-  'function approve(address spender, uint256 amount) returns (bool)',
-  'function transfer(address to, uint256 amount) returns (bool)',
-  'function decimals() view returns (uint8)',
-  'function symbol() view returns (string)',
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ type: 'string' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
 ] as const;
 
-// ABI for Confidential Wrapper (ERC7984)
+// ABI for ConfidentialUSDCWrapper (ERC7984) - From deployment
 export const WRAPPER_ABI = [
-  // Read functions
-  'function balanceOf(address) view returns (uint256)',
-  'function confidentialBalanceOf(address) view returns (bytes32)',
-  'function decimals() view returns (uint8)',
-  'function symbol() view returns (string)',
-  'function isOperator(address owner, address operator) view returns (bool)',
-  
-  // Write functions
-  'function wrap(address to, uint256 amount)',
-  'function unwrap(address from, address to, bytes32 encryptedAmount, bytes inputProof)',
-  'function confidentialTransfer(address to, bytes32 encryptedAmount, bytes inputProof) returns (bytes32)',
-  'function confidentialTransferFrom(address from, address to, bytes32 encryptedAmount) returns (bytes32)',
-  'function setOperator(address operator, uint48 until)',
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'confidentialBalanceOf',
+    outputs: [{ name: '', type: 'bytes32' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'confidentialTotalSupply',
+    outputs: [{ name: '', type: 'bytes32' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'inputProof', type: 'bytes' },
+    ],
+    name: 'confidentialTransfer',
+    outputs: [{ name: '', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'from', type: 'address' },
+      { name: 'to', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'inputProof', type: 'bytes' },
+    ],
+    name: 'confidentialTransferFrom',
+    outputs: [{ name: 'transferred', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'holder', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    name: 'isOperator',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', type: 'string' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'operator', type: 'address' },
+      { name: 'until', type: 'uint48' },
+    ],
+    name: 'setOperator',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', type: 'string' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'underlying',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'from', type: 'address' },
+      { name: 'to', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'inputProof', type: 'bytes' },
+    ],
+    name: 'unwrap',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'wrap',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Events
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'from', type: 'address' },
+      { indexed: true, name: 'to', type: 'address' },
+      { indexed: true, name: 'amount', type: 'bytes32' },
+    ],
+    name: 'ConfidentialTransfer',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'holder', type: 'address' },
+      { indexed: true, name: 'operator', type: 'address' },
+      { indexed: false, name: 'until', type: 'uint48' },
+    ],
+    name: 'OperatorSet',
+    type: 'event',
+  },
 ] as const;
 
-// ABI for AruviPaymentGateway (new privacy-first contract)
+// ABI for AruviPaymentGateway - From deployment
 export const ARUVI_GATEWAY_ABI = [
   // ============ SEND MONEY ============
-  'function send(address recipient, bytes32 encryptedAmount, bytes proof) returns (bytes32 paymentId)',
-  'function sendToken(address recipient, address token, bytes32 encryptedAmount, bytes proof) returns (bytes32 paymentId)',
-  'function multiSend(address[] recipients, bytes32[] encryptedAmounts, bytes[] proofs) returns (bytes32[] paymentIds)',
-  
+  {
+    inputs: [
+      { name: 'recipient', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'proof', type: 'bytes' },
+    ],
+    name: 'send',
+    outputs: [{ name: 'paymentId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'recipient', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'proof', type: 'bytes' },
+    ],
+    name: 'sendToken',
+    outputs: [{ name: 'paymentId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'recipients', type: 'address[]' },
+      { name: 'encryptedAmounts', type: 'bytes32[]' },
+      { name: 'proofs', type: 'bytes[]' },
+    ],
+    name: 'multiSend',
+    outputs: [{ name: 'paymentIds', type: 'bytes32[]' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
   // ============ REQUEST MONEY ============
-  'function createRequest(bytes32 encryptedAmount, bytes proof, uint256 expiresIn) returns (bytes32 requestId)',
-  'function createRequestToken(address token, bytes32 encryptedAmount, bytes proof, uint256 expiresIn) returns (bytes32 requestId)',
-  'function fulfillRequest(bytes32 requestId, bytes32 encryptedAmount, bytes proof) returns (bytes32 paymentId)',
-  'function cancelRequest(bytes32 requestId)',
-  
+  {
+    inputs: [
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'proof', type: 'bytes' },
+      { name: 'expiresIn', type: 'uint256' },
+    ],
+    name: 'createRequest',
+    outputs: [{ name: 'requestId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'proof', type: 'bytes' },
+      { name: 'expiresIn', type: 'uint256' },
+    ],
+    name: 'createRequestToken',
+    outputs: [{ name: 'requestId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'requestId', type: 'bytes32' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'proof', type: 'bytes' },
+    ],
+    name: 'fulfillRequest',
+    outputs: [{ name: 'paymentId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'requestId', type: 'bytes32' }],
+    name: 'cancelRequest',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
   // ============ SUBSCRIPTIONS ============
-  'function createSubscription(address recipient, bytes32 encryptedAmount, bytes proof, uint256 interval) returns (bytes32 subscriptionId)',
-  'function executeSubscription(bytes32 subscriptionId) returns (bytes32 paymentId)',
-  'function cancelSubscription(bytes32 subscriptionId)',
-  
+  {
+    inputs: [
+      { name: 'recipient', type: 'address' },
+      { name: 'encryptedAmount', type: 'bytes32' },
+      { name: 'proof', type: 'bytes' },
+      { name: 'interval', type: 'uint256' },
+    ],
+    name: 'createSubscription',
+    outputs: [{ name: 'subscriptionId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'subscriptionId', type: 'bytes32' }],
+    name: 'executeSubscription',
+    outputs: [{ name: 'paymentId', type: 'bytes32' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'subscriptionId', type: 'bytes32' }],
+    name: 'cancelSubscription',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
   // ============ REFUNDS ============
-  'function refund(bytes32 paymentId)',
-  
+  {
+    inputs: [{ name: 'paymentId', type: 'bytes32' }],
+    name: 'refund',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
   // ============ VIEW FUNCTIONS ============
-  'function getMySentTotal() view returns (bytes32)',
-  'function getMyReceivedTotal() view returns (bytes32)',
-  'function getPaymentInfo(bytes32 paymentId) view returns (address sender, address recipient, address token, uint256 timestamp, bool isRefunded)',
-  'function getRequestInfo(bytes32 requestId) view returns (address requester, address token, uint256 createdAt, uint256 expiresAt, bool fulfilled)',
-  'function getSubscriptionInfo(bytes32 subscriptionId) view returns (address subscriber, address recipient, uint256 interval, uint256 nextPayment, bool active)',
-  'function paymentCount(address) view returns (uint256)',
-  'function requestCount(address) view returns (uint256)',
-  'function subscriptionCount(address) view returns (uint256)',
-  'function refunded(bytes32) view returns (bool)',
-  'function defaultToken() view returns (address)',
-  'function owner() view returns (address)',
-  
+  {
+    inputs: [],
+    name: 'getMySentTotal',
+    outputs: [{ name: '', type: 'bytes32' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getMyReceivedTotal',
+    outputs: [{ name: '', type: 'bytes32' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'paymentId', type: 'bytes32' }],
+    name: 'getPaymentInfo',
+    outputs: [
+      { name: 'sender', type: 'address' },
+      { name: 'recipient', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'timestamp', type: 'uint256' },
+      { name: 'isRefunded', type: 'bool' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'requestId', type: 'bytes32' }],
+    name: 'getRequestInfo',
+    outputs: [
+      { name: 'requester', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'createdAt', type: 'uint256' },
+      { name: 'expiresAt', type: 'uint256' },
+      { name: 'fulfilled', type: 'bool' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'subscriptionId', type: 'bytes32' }],
+    name: 'getSubscriptionInfo',
+    outputs: [
+      { name: 'subscriber', type: 'address' },
+      { name: 'recipient', type: 'address' },
+      { name: 'interval', type: 'uint256' },
+      { name: 'nextPayment', type: 'uint256' },
+      { name: 'active', type: 'bool' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '', type: 'address' }],
+    name: 'paymentCount',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '', type: 'address' }],
+    name: 'requestCount',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '', type: 'address' }],
+    name: 'subscriptionCount',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '', type: 'bytes32' }],
+    name: 'refunded',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'defaultToken',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
   // ============ EVENTS ============
-  'event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to)',
-  'event PaymentRefunded(bytes32 indexed paymentId)',
-  'event RequestCreated(bytes32 indexed requestId, address indexed requester)',
-  'event RequestFulfilled(bytes32 indexed requestId, bytes32 indexed paymentId)',
-  'event RequestCancelled(bytes32 indexed requestId)',
-  'event SubscriptionCreated(bytes32 indexed subscriptionId, address indexed subscriber, address indexed recipient)',
-  'event SubscriptionPaid(bytes32 indexed subscriptionId, bytes32 indexed paymentId)',
-  'event SubscriptionCancelled(bytes32 indexed subscriptionId)',
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'paymentId', type: 'bytes32' },
+      { indexed: true, name: 'from', type: 'address' },
+      { indexed: true, name: 'to', type: 'address' },
+    ],
+    name: 'PaymentSent',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [{ indexed: true, name: 'paymentId', type: 'bytes32' }],
+    name: 'PaymentRefunded',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'requestId', type: 'bytes32' },
+      { indexed: true, name: 'requester', type: 'address' },
+    ],
+    name: 'RequestCreated',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'requestId', type: 'bytes32' },
+      { indexed: true, name: 'paymentId', type: 'bytes32' },
+    ],
+    name: 'RequestFulfilled',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [{ indexed: true, name: 'requestId', type: 'bytes32' }],
+    name: 'RequestCancelled',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'subscriptionId', type: 'bytes32' },
+      { indexed: true, name: 'subscriber', type: 'address' },
+      { indexed: true, name: 'recipient', type: 'address' },
+    ],
+    name: 'SubscriptionCreated',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'subscriptionId', type: 'bytes32' },
+      { indexed: true, name: 'paymentId', type: 'bytes32' },
+    ],
+    name: 'SubscriptionPaid',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [{ indexed: true, name: 'subscriptionId', type: 'bytes32' }],
+    name: 'SubscriptionCancelled',
+    type: 'event',
+  },
 ] as const;
 
 // Legacy alias for backwards compatibility

@@ -76,7 +76,7 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-gray-400">
               <li>
                 <a
-                  href="https://docs.zama.ai/fhevm"
+                  href="https://docs.zama.org/protocol"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors inline-flex items-center gap-1"
@@ -98,7 +98,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://github.com"
+                  href="https://github.com/ramakrishnanhulk20/Aruvi"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors inline-flex items-center gap-1"

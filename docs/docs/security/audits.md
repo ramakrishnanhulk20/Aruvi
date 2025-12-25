@@ -167,8 +167,8 @@ Not yet launched.
 ### Contract Verification
 
 All contracts are verified on Etherscan:
-- [PaymentGateway](https://sepolia.etherscan.io/address/0x05798f2304A5B9263243C8002c87D4f59546958D#code)
-- ConfidentialUSDCWrapper (link)
+- [PaymentGateway](https://sepolia.etherscan.io/address/0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b#code)
+- [ConfidentialUSDCWrapper](https://sepolia.etherscan.io/address/0xf99376BE228E8212C3C9b8B746683C96C1517e8B#code)
 - ProductRegistry (link)
 
 ### Source Code

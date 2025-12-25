@@ -3,90 +3,92 @@ sidebar_position: 1
 title: PaymentGateway
 ---
 
-# PaymentGateway API
+# AruviPaymentGateway API
 
 The main contract for all payment operations.
 
-**Address (Sepolia):** `0x05798f2304A5B9263243C8002c87D4f59546958D`
+**Address (Sepolia):** `0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b`
 
 ## Write Functions
 
-### sendConfidential
+### send
 
 Send an encrypted payment to a recipient.
 
 ```solidity
-function sendConfidential(
-    address to,
-    einput encryptedAmount,
-    bytes calldata inputProof
-) external returns (uint256 paymentId)
+function send(
+    address recipient,
+    externalEuint64 encryptedAmount,
+    bytes calldata proof
+) external returns (bytes32 paymentId)
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `to` | `address` | Recipient wallet address |
-| `encryptedAmount` | `einput` | FHE-encrypted amount |
-| `inputProof` | `bytes` | Proof of encryption validity |
+| `recipient` | `address` | Recipient wallet address |
+| `encryptedAmount` | `bytes32` | FHE-encrypted amount (externalEuint64) |
+| `proof` | `bytes` | Encryption proof from fhevmjs |
 
-**Returns:** `uint256` — Unique payment ID
+**Returns:** `bytes32` — Unique payment ID
 
 **Emits:** `PaymentSent(paymentId, from, to)`
 
 **Example:**
 ```typescript
 const { handles, inputProof } = await encryptAmount(100_000000n);
-const tx = await gateway.sendConfidential(recipient, handles[0], inputProof);
+const tx = await gateway.send(recipient, handles[0], inputProof);
 ```
 
 ---
 
-### createPaymentRequest
+### createRequest
 
-Request payment from another address.
+Create a payment request (payment link).
 
 ```solidity
-function createPaymentRequest(
-    address from,
-    einput encryptedAmount,
-    bytes calldata inputProof,
-    bytes32 memo
-) external returns (uint256 requestId)
+function createRequest(
+    externalEuint64 encryptedAmount,
+    bytes calldata proof,
+    uint256 expiresIn
+) external returns (bytes32 requestId)
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `from` | `address` | Who should pay |
-| `encryptedAmount` | `einput` | Requested amount (encrypted) |
-| `inputProof` | `bytes` | Encryption proof |
-| `memo` | `bytes32` | Optional reference/note |
+| `encryptedAmount` | `bytes32` | Requested amount (encrypted) |
+| `proof` | `bytes` | Encryption proof |
+| `expiresIn` | `uint256` | Seconds until expiry (0 = never) |
 
-**Returns:** `uint256` — Unique request ID
+**Returns:** `bytes32` — Unique request ID
 
-**Emits:** `PaymentRequestCreated(requestId, from, to)`
+**Emits:** `RequestCreated(requestId, requester)`
 
 ---
 
-### fulfillPaymentRequest
+### fulfillRequest
 
 Pay a pending payment request.
 
 ```solidity
-function fulfillPaymentRequest(
-    uint256 requestId
-) external
+function fulfillRequest(
+    bytes32 requestId,
+    externalEuint64 encryptedAmount,
+    bytes calldata proof
+) external returns (bytes32 paymentId)
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `requestId` | `uint256` | Request to fulfill |
+| `requestId` | `bytes32` | Request to fulfill |
+| `encryptedAmount` | `bytes32` | Payment amount (encrypted) |
+| `proof` | `bytes` | Encryption proof |
 
-**Emits:** `PaymentRequestFulfilled(requestId)`
+**Emits:** `RequestFulfilled(requestId, paymentId)`
 
 **Reverts if:**
 - Request doesn't exist
 - Request already fulfilled
-- Caller isn't the requested payer
+- Request expired
 - Insufficient balance
 
 ---
@@ -177,93 +179,97 @@ Cancel an active subscription.
 
 ```solidity
 function cancelSubscription(
-    uint256 subscriptionId
+    bytes32 subscriptionId
 ) external
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `subscriptionId` | `uint256` | Subscription to cancel |
+| `subscriptionId` | `bytes32` | Subscription to cancel |
 
 **Emits:** `SubscriptionCancelled(subscriptionId)`
 
 **Reverts if:**
 - Subscription doesn't exist
-- Caller isn't the payer
+- Caller isn't the subscriber
 - Already cancelled
 
 ---
 
 ## Read Functions
 
-### getPayment
+### getPaymentInfo
 
-Get payment details.
+Get payment details (public info only - amount is encrypted).
 
 ```solidity
-function getPayment(
-    uint256 paymentId
-) external view returns (Payment memory)
+function getPaymentInfo(
+    bytes32 paymentId
+) external view returns (
+    address sender,
+    address recipient,
+    address token,
+    uint256 timestamp,
+    bool isRefunded
+)
 ```
 
 **Returns:**
-```solidity
-struct Payment {
-    address from;
-    address to;
-    euint64 encryptedAmount;
-    uint256 timestamp;
-    PaymentStatus status;
-}
-```
+- `sender`: Address that sent the payment
+- `recipient`: Address that received the payment
+- `token`: Token contract address (cUSDC wrapper)
+- `timestamp`: When the payment was made
+- `isRefunded`: Whether the payment was refunded
 
 ---
 
-### getPaymentRequest
+### getRequestInfo
 
-Get request details.
+Get request details (public info only).
 
 ```solidity
-function getPaymentRequest(
-    uint256 requestId
-) external view returns (PaymentRequest memory)
+function getRequestInfo(
+    bytes32 requestId
+) external view returns (
+    address requester,
+    address token,
+    uint256 createdAt,
+    uint256 expiresAt,
+    bool fulfilled
+)
 ```
 
 **Returns:**
-```solidity
-struct PaymentRequest {
-    address requester;
-    address payer;
-    euint64 encryptedAmount;
-    bytes32 memo;
-    uint256 timestamp;
-    RequestStatus status;
-}
-```
+- `requester`: Address that created the request
+- `token`: Token contract address
+- `createdAt`: When the request was created
+- `expiresAt`: When the request expires (0 = never)
+- `fulfilled`: Whether the request has been paid
 
 ---
 
-### getSubscription
+### getSubscriptionInfo
 
-Get subscription details.
+Get subscription details (public info only).
 
 ```solidity
-function getSubscription(
-    uint256 subscriptionId
-) external view returns (Subscription memory)
+function getSubscriptionInfo(
+    bytes32 subscriptionId
+) external view returns (
+    address subscriber,
+    address recipient,
+    uint256 interval,
+    uint256 nextPayment,
+    bool active
+)
 ```
 
 **Returns:**
-```solidity
-struct Subscription {
-    address payer;
-    address recipient;
-    euint64 encryptedAmount;
-    uint256 interval;
-    uint256 lastExecution;
-    uint256 executionCount;
-    bool isActive;
-}
+- `subscriber`: Address paying the subscription
+- `recipient`: Address receiving payments
+- `interval`: Seconds between payments
+- `nextPayment`: Timestamp of next due payment
+- `active`: Whether the subscription is still active
 ```
 
 ---

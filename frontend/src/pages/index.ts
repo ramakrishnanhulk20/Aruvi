@@ -1,6 +1,7 @@
 export { Landing } from './Landing';
 export { Dashboard } from './Dashboard';
 export { Send } from './Send';
+export { MultiSend } from './MultiSend';
 export { Request } from './Request';
 export { Wallet } from './Wallet';
 export { Activity } from './Activity';

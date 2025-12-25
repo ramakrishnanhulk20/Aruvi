@@ -83,7 +83,7 @@ Unlike traditional blockchain payments where anyone can view your transaction hi
 
 | Contract | Address | Network |
 |----------|---------|---------|
-| AruviPaymentGateway | `0x05798f2304A5B9263243C8002c87D4f59546958D` | Sepolia |
+| AruviPaymentGateway | `0xf2Dd4FC2114e524E9B53d9F608e7484E1CD3271b` | Sepolia |
 | ConfidentialUSDCWrapper | `0xf99376BE228E8212C3C9b8B746683C96C1517e8B` | Sepolia |
 | USDC (Circle) | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` | Sepolia |
 

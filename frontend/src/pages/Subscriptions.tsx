@@ -216,7 +216,7 @@ export function Subscriptions() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create subscription';
       setFormError(errorMessage);
-      toast.error('Failed to create subscription', { id: 'create-sub' });
+      toast.error(errorMessage, { id: 'create-sub' });
     }
   };
 
@@ -231,8 +231,9 @@ export function Subscriptions() {
       );
       saveSubscriptions(updated);
       toast.success('Subscription cancelled', { id: 'cancel-sub' });
-    } catch {
-      toast.error('Failed to cancel subscription', { id: 'cancel-sub' });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to cancel subscription';
+      toast.error(errorMessage, { id: 'cancel-sub' });
     }
   };
 
@@ -247,8 +248,9 @@ export function Subscriptions() {
       );
       saveSubscriptions(updated);
       toast.success('Payment processed!', { id: 'exec-sub' });
-    } catch {
-      toast.error('Failed to process payment', { id: 'exec-sub' });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process payment';
+      toast.error(errorMessage, { id: 'exec-sub' });
     }
   };
 
