@@ -5,7 +5,7 @@
 <h1 align="center">Aruvi</h1>
 
 <p align="center">
-  <strong>Privacy-First Payments on Ethereum</strong><br>
+  <strong>Payment gateway & protocal for confidential tokens(ERC7984) on Ethereum</strong><br>
   <em>அருவி (Aruvi) — Tamil for "waterfall" — where privacy flows freely</em>
 </p>
 
