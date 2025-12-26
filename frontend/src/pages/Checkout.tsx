@@ -81,7 +81,6 @@ export function Checkout() {
   const { send, fhevmReady, approveGateway, isOperatorApproved } = useAruviGateway();
   const { 
     confidentialBalanceHandle, 
-    formattedDecryptedBalance, 
     formattedErc20Balance,
   } = useConfidentialToken();
 
@@ -335,7 +334,6 @@ export function Checkout() {
                 address={address!}
                 hasCusdcBalance={hasCusdcBalance}
                 hasUsdcBalance={hasUsdcBalance}
-                cusdcBalance={formattedDecryptedBalance || '0'}
                 usdcBalance={formattedErc20Balance || '0'}
                 fhevmReady={fhevmReady}
                 onPay={handlePay}
@@ -486,7 +484,6 @@ interface ReviewStepProps {
   address: `0x${string}`;
   hasCusdcBalance: boolean;
   hasUsdcBalance: boolean;
-  cusdcBalance: string;
   usdcBalance: string;
   fhevmReady: boolean;
   onPay: () => void;
@@ -494,9 +491,9 @@ interface ReviewStepProps {
   onDisconnect: () => void;
 }
 
-function ReviewStep({ data, address, hasCusdcBalance, hasUsdcBalance, cusdcBalance, usdcBalance, fhevmReady, onPay, onCancel, onDisconnect }: ReviewStepProps) {
-  const insufficientCusdc = !hasCusdcBalance || parseFloat(cusdcBalance) < parseFloat(data.amount);
-  const canWrapUsdc = hasUsdcBalance && parseFloat(usdcBalance) >= parseFloat(data.amount);
+function ReviewStep({ data, address, hasCusdcBalance, hasUsdcBalance, usdcBalance, fhevmReady, onPay, onCancel, onDisconnect }: ReviewStepProps) {
+  // Only check if user has ANY cUSDC (non-zero handle)
+  // Actual balance check happens on-chain with FHE - that's the power of Zama!
 
   return (
     <motion.div
@@ -538,37 +535,23 @@ function ReviewStep({ data, address, hasCusdcBalance, hasUsdcBalance, cusdcBalan
           <span className="font-mono text-sm text-gray-900">{formatAddress(data.merchant)}</span>
         </div>
 
-        <div className="flex items-center justify-between py-3">
-          <span className="text-gray-600">Your Balance</span>
-          <span className="text-gray-900">
-            {hasCusdcBalance ? (
-              <span>{cusdcBalance} <span className="text-[#0070ba] font-medium">cUSDC</span></span>
-            ) : (
-              <span className="text-gray-400">0 cUSDC</span>
-            )}
-          </span>
-        </div>
-
-        {insufficientCusdc && !canWrapUsdc && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm">
+        {/* No cUSDC Balance Warning - only show if user has NO cUSDC at all */}
+        {!hasCusdcBalance && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-sm">
             <AlertCircle className="w-4 h-4 inline mr-2" />
-            Insufficient cUSDC balance. Please wrap USDC to cUSDC first.
-          </div>
-        )}
-
-        {insufficientCusdc && canWrapUsdc && (
-          <div className="bg-amber-50 text-amber-700 p-4 rounded-xl text-sm">
-            <AlertCircle className="w-4 h-4 inline mr-2" />
-            You have {usdcBalance} USDC available.{' '}
+            <span className="font-medium">No cUSDC Balance</span>
+            <p className="mt-1 text-amber-700">
+              You need cUSDC to pay. 
+              {hasUsdcBalance && ` You have ${usdcBalance} USDC that can be wrapped.`}
+            </p>
             <a 
               href="https://aruvi-dapp.vercel.app" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="underline font-medium hover:text-amber-800"
+              className="inline-block mt-2 text-amber-800 underline font-medium hover:text-amber-900"
             >
-              Wrap to cUSDC
-            </a>{' '}
-            to make this payment.
+              Wrap USDC → cUSDC
+            </a>
           </div>
         )}
 
@@ -589,7 +572,7 @@ function ReviewStep({ data, address, hasCusdcBalance, hasUsdcBalance, cusdcBalan
           </button>
           <button
             onClick={onPay}
-            disabled={insufficientCusdc || !fhevmReady}
+            disabled={!hasCusdcBalance || !fhevmReady}
             className="flex-1 py-3 px-4 bg-[#003087] hover:bg-[#002060] text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Shield className="w-5 h-5" />
