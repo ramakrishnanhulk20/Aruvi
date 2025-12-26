@@ -27,8 +27,8 @@ import { CONTRACTS } from '../lib/contracts';
 import { useConfidentialToken } from '../hooks/useConfidentialToken';
 import { formatAddress } from '../lib/utils';
 
-// Event signatures
-const PAYMENT_SENT_EVENT = parseAbiItem('event PaymentSent(bytes32 indexed paymentId, address indexed sender, address indexed recipient)');
+// Event signatures - MUST match contract exactly!
+const PAYMENT_SENT_EVENT = parseAbiItem('event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to)');
 const REQUEST_CREATED_EVENT = parseAbiItem('event RequestCreated(bytes32 indexed requestId, address indexed requester)');
 
 export function Business() {
@@ -65,11 +65,11 @@ export function Business() {
     try {
       setIsLoading(true);
 
-      // Fetch payments received by this user (as recipient)
+      // Fetch payments received by this user (as recipient = 'to')
       const receivedLogs = await publicClient.getLogs({
         address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
         event: PAYMENT_SENT_EVENT,
-        args: { recipient: address },
+        args: { to: address },  // 'to' is recipient in contract
         fromBlock: 'earliest',
         toBlock: 'latest'
       });
@@ -83,12 +83,12 @@ export function Business() {
         toBlock: 'latest'
       });
 
-      // Count unique customers (senders)
+      // Count unique customers (senders = 'from')
       const customers = new Set<string>();
       const payments: typeof recentPayments = [];
 
       for (const log of receivedLogs) {
-        const sender = (log.args as { sender?: string }).sender;
+        const sender = (log.args as { from?: string }).from;  // 'from' is sender in contract
         if (sender) {
           customers.add(sender.toLowerCase());
           payments.push({

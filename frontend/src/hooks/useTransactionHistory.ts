@@ -15,8 +15,16 @@ interface PaymentLog {
   transactionHash: `0x${string}`;
   args: {
     paymentId: `0x${string}`;
-    sender?: `0x${string}`;
-    recipient?: `0x${string}`;
+    from?: `0x${string}`;  // sender in PaymentSent
+    to?: `0x${string}`;    // recipient in PaymentSent
+  };
+}
+
+interface RefundLog {
+  blockNumber: bigint;
+  transactionHash: `0x${string}`;
+  args: {
+    paymentId: `0x${string}`;
   };
 }
 
@@ -31,9 +39,11 @@ export interface Transaction {
   blockNumber: bigint;
 }
 
-// Event signatures
-const PAYMENT_SENT_EVENT = parseAbiItem('event PaymentSent(bytes32 indexed paymentId, address indexed sender, address indexed recipient)');
-const REFUND_ISSUED_EVENT = parseAbiItem('event RefundIssued(bytes32 indexed paymentId, address indexed recipient, address indexed sender)');
+// Event signatures - MUST match contract exactly!
+// Contract: event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to)
+const PAYMENT_SENT_EVENT = parseAbiItem('event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to)');
+// Contract: event PaymentRefunded(bytes32 indexed paymentId)
+const PAYMENT_REFUNDED_EVENT = parseAbiItem('event PaymentRefunded(bytes32 indexed paymentId)');
 
 // Max blocks per query (RPC limit is usually 1000)
 const MAX_BLOCKS_PER_QUERY = 500n;
@@ -53,7 +63,7 @@ export function useTransactionHistory() {
 
   // Helper to fetch logs in chunks to avoid RPC limits
   const fetchLogsInChunks = useCallback(async (
-    event: typeof PAYMENT_SENT_EVENT | typeof REFUND_ISSUED_EVENT,
+    event: typeof PAYMENT_SENT_EVENT,
     args: Record<string, `0x${string}` | undefined>,
     fromBlock: bigint,
     toBlock: bigint
@@ -112,29 +122,29 @@ export function useTransactionHistory() {
       const currentBlock = await publicClient.getBlockNumber();
       const fromBlock = currentBlock > LOOKBACK_BLOCKS ? currentBlock - LOOKBACK_BLOCKS : 0n;
 
-      // Fetch sent payments (where user is sender) - chunked
+      // Fetch sent payments (where user is sender/from) - chunked
       const sentLogs = await fetchLogsInChunks(
         PAYMENT_SENT_EVENT,
-        { sender: address },
+        { from: address },
         fromBlock,
         currentBlock
       );
 
-      // Fetch received payments (where user is recipient) - chunked
+      // Fetch received payments (where user is recipient/to) - chunked
       const receivedLogs = await fetchLogsInChunks(
         PAYMENT_SENT_EVENT,
-        { recipient: address },
+        { to: address },
         fromBlock,
         currentBlock
       );
 
-      // Fetch refunds where user received refund (original sender) - chunked
-      const refundLogs = await fetchLogsInChunks(
-        REFUND_ISSUED_EVENT,
-        { sender: address },
+      // Fetch all refund events (no filter, then we'll match by paymentId)
+      const refundLogs = await publicClient.getLogs({
+        address: CONTRACTS.ARUVI_GATEWAY,
+        event: PAYMENT_REFUNDED_EVENT,
         fromBlock,
-        currentBlock
-      );
+        toBlock: currentBlock,
+      }) as unknown as RefundLog[];
 
       // Get block timestamps (batch unique blocks)
       const blockNumbers = new Set<bigint>();
@@ -163,18 +173,25 @@ export function useTransactionHistory() {
       // Create transaction list
       const txList: Transaction[] = [];
 
+      // Create a set of refunded paymentIds for quick lookup
+      const refundedPaymentIds = new Set(
+        refundLogs.map(log => log.args.paymentId.toLowerCase())
+      );
+
       // Process sent
       sentLogs.forEach((log) => {
         const paymentId = log.args.paymentId;
-        const recipient = log.args.recipient;
-        if (!recipient) return;
+        const to = log.args.to;  // recipient
+        if (!to) return;
+        
+        const isRefunded = refundedPaymentIds.has(paymentId.toLowerCase());
         
         txList.push({
           id: `sent-${paymentId}`,
           type: 'sent',
-          counterparty: recipient,
+          counterparty: to,
           timestamp: blockTimestamps[log.blockNumber.toString()] || 0,
-          status: 'completed',
+          status: isRefunded ? 'refunded' : 'completed',
           txHash: log.transactionHash,
           paymentId,
           blockNumber: log.blockNumber,
@@ -184,44 +201,67 @@ export function useTransactionHistory() {
       // Process received
       receivedLogs.forEach((log) => {
         const paymentId = log.args.paymentId;
-        const sender = log.args.sender;
-        if (!sender) return;
+        const from = log.args.from;  // sender
+        if (!from) return;
+        
+        const isRefunded = refundedPaymentIds.has(paymentId.toLowerCase());
         
         txList.push({
           id: `received-${paymentId}`,
           type: 'received',
-          counterparty: sender,
+          counterparty: from,
           timestamp: blockTimestamps[log.blockNumber.toString()] || 0,
-          status: 'completed',
+          status: isRefunded ? 'refunded' : 'completed',
           txHash: log.transactionHash,
           paymentId,
           blockNumber: log.blockNumber,
         });
       });
 
-      // Process refunds
-      refundLogs.forEach((log) => {
+      // Process refunds - add refund entries to activity
+      for (const log of refundLogs) {
         const paymentId = log.args.paymentId;
-        const recipient = log.args.recipient;
-        if (!recipient) return;
         
-        // Mark original sent transaction as refunded
-        const originalTx = txList.find(tx => tx.paymentId === paymentId && tx.type === 'sent');
-        if (originalTx) {
-          originalTx.status = 'refunded';
+        // Find the original payment to get counterparty info
+        const originalSent = txList.find(tx => tx.paymentId.toLowerCase() === paymentId.toLowerCase() && tx.type === 'sent');
+        const originalReceived = txList.find(tx => tx.paymentId.toLowerCase() === paymentId.toLowerCase() && tx.type === 'received');
+        
+        // Get block timestamp for refund
+        let refundTimestamp = Math.floor(Date.now() / 1000);
+        try {
+          const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+          refundTimestamp = Number(block.timestamp);
+        } catch {
+          // Use current time if block fetch fails
         }
         
-        txList.push({
-          id: `refund-${paymentId}`,
-          type: 'refund',
-          counterparty: recipient,
-          timestamp: blockTimestamps[log.blockNumber.toString()] || 0,
-          status: 'completed',
-          txHash: log.transactionHash,
-          paymentId,
-          blockNumber: log.blockNumber,
-        });
-      });
+        // If user was the original sender (they received the refund)
+        if (originalSent) {
+          txList.push({
+            id: `refund-${paymentId}`,
+            type: 'refund',
+            counterparty: originalSent.counterparty, // The recipient who refunded
+            timestamp: refundTimestamp,
+            status: 'completed',
+            txHash: log.transactionHash,
+            paymentId,
+            blockNumber: log.blockNumber,
+          });
+        }
+        // If user was the recipient (they issued the refund) - show as outgoing refund
+        else if (originalReceived) {
+          txList.push({
+            id: `refund-${paymentId}`,
+            type: 'refund',
+            counterparty: originalReceived.counterparty, // The sender who got refunded
+            timestamp: refundTimestamp,
+            status: 'completed',
+            txHash: log.transactionHash,
+            paymentId,
+            blockNumber: log.blockNumber,
+          });
+        }
+      }
 
       // Sort by timestamp (newest first)
       txList.sort((a, b) => b.timestamp - a.timestamp);

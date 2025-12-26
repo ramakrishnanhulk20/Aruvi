@@ -24,16 +24,18 @@ const SEPOLIA_RPC_URL: string =
 // Otherwise fall back to mnemonic-derived accounts.
 const PRIVATE_KEY: string = process.env.PRIVATE_KEY ?? vars.get("PRIVATE_KEY", "");
 
+const ETHERSCAN_API_KEY: string = vars.get("ETHERSCAN_API_KEY", process.env.ETHERSCAN_API_KEY ?? "");
+
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   namedAccounts: {
     deployer: 0,
   },
   etherscan: {
-    apiKey: vars.get("ETHERSCAN_API_KEY", process.env.ETHERSCAN_API_KEY ?? ""),
+    apiKey: ETHERSCAN_API_KEY, // Single key for V2 API
   },
   sourcify: {
-    enabled: false
+    enabled: true, // Enable Sourcify as fallback
   },
   gasReporter: {
     currency: "USD",

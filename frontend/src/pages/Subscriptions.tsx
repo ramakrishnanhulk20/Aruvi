@@ -199,19 +199,41 @@ export function Subscriptions() {
       });
       
       if (result) {
-        // Add to local subscriptions
-        const newSub: Subscription = {
-          id: result.id as `0x${string}`,
-          recipient: recipient as `0x${string}`,
-          frequency,
-          nextPayment: Math.floor(Date.now() / 1000) + frequency,
-          status: 'active',
-          createdAt: Math.floor(Date.now() / 1000),
-          txHash: result.hash,
-        };
-        saveSubscriptions([newSub, ...subscriptions]);
-        setView('success');
-        toast.success('Subscription created!', { id: 'create-sub' });
+        toast.loading('Processing first payment...', { id: 'create-sub' });
+        
+        // Auto-execute first payment
+        try {
+          await executeSubscription(result.id as `0x${string}`);
+          
+          // Add to local subscriptions with next payment in the future
+          const newSub: Subscription = {
+            id: result.id as `0x${string}`,
+            recipient: recipient as `0x${string}`,
+            frequency,
+            nextPayment: Math.floor(Date.now() / 1000) + frequency, // Next payment after interval
+            status: 'active',
+            createdAt: Math.floor(Date.now() / 1000),
+            txHash: result.hash,
+          };
+          saveSubscriptions([newSub, ...subscriptions]);
+          setView('success');
+          toast.success('Subscription created and first payment sent!', { id: 'create-sub' });
+        } catch (payErr) {
+          // Subscription created but first payment failed
+          console.error('First payment failed:', payErr);
+          const newSub: Subscription = {
+            id: result.id as `0x${string}`,
+            recipient: recipient as `0x${string}`,
+            frequency,
+            nextPayment: Math.floor(Date.now() / 1000), // Still due
+            status: 'active',
+            createdAt: Math.floor(Date.now() / 1000),
+            txHash: result.hash,
+          };
+          saveSubscriptions([newSub, ...subscriptions]);
+          setView('success');
+          toast.error('Subscription created but first payment failed. You can retry from the list.', { id: 'create-sub' });
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create subscription';
@@ -399,7 +421,7 @@ export function Subscriptions() {
                                 isPaymentDue(sub.nextPayment) ? 'text-orange-600 font-semibold' : 'text-gray-500'
                               }`}>
                                 <Clock className="w-4 h-4" />
-                                {isPaymentDue(sub.nextPayment) ? 'Payment due!' : `Next: ${formatDate(sub.nextPayment)}`}
+                                {isPaymentDue(sub.nextPayment) ? 'First payment due' : `Next: ${formatDate(sub.nextPayment)}`}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">

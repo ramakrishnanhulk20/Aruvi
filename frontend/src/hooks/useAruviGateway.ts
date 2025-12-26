@@ -261,6 +261,22 @@ export function useAruviGateway() {
         throw new Error('Recipients and amounts must have same length');
       }
 
+      if (recipients.length === 0 || recipients.length > 10) {
+        throw new Error('Must have 1-10 recipients');
+      }
+
+      // Validate no self-sends
+      const selfSend = recipients.find(r => r.toLowerCase() === address.toLowerCase());
+      if (selfSend) {
+        throw new Error('Cannot send to yourself');
+      }
+
+      // Validate all amounts are positive
+      const invalidAmount = amounts.find(a => a <= 0n);
+      if (invalidAmount !== undefined) {
+        throw new Error('All amounts must be greater than 0');
+      }
+
       setIsProcessing(true);
 
       try {
@@ -296,7 +312,7 @@ export function useAruviGateway() {
           abi: GATEWAY_ABI,
           functionName: 'multiSend',
           args: [recipients, encryptedAmounts, proofs],
-          gas: BigInt(500000 * recipients.length),
+          gas: BigInt(1500000 + 800000 * recipients.length), // Higher gas for FHE operations
         });
 
         // Wait for receipt and verify transaction succeeded
@@ -316,7 +332,7 @@ export function useAruviGateway() {
         setIsProcessing(false);
       }
     },
-    [address, isConnected, fhevmReady, isOperator, approveGateway, encryptAmount, writeContractAsync]
+    [address, isConnected, fhevmReady, isOperator, approveGateway, encryptAmount, writeContractAsync, publicClient]
   );
 
   // ============================================================
@@ -581,13 +597,20 @@ export function useAruviGateway() {
       setIsProcessing(true);
 
       try {
+        // Ensure Gateway is approved as operator - CRITICAL for confidentialTransferFrom
+        if (!isOperator) {
+          console.log('[Aruvi] Gateway not approved, approving...');
+          await approveGateway();
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
         console.log('[Aruvi] Executing subscription', subscriptionId);
         const hash = await writeContractAsync({
           address: CONTRACTS.ARUVI_GATEWAY,
           abi: GATEWAY_ABI,
           functionName: 'executeSubscription',
           args: [subscriptionId],
-          gas: 800000n,
+          gas: 1500000n, // Increased gas for FHE operations
         });
 
         // Wait for receipt and verify transaction succeeded
@@ -616,7 +639,7 @@ export function useAruviGateway() {
         setIsProcessing(false);
       }
     },
-    [address, isConnected, writeContractAsync, publicClient]
+    [address, isConnected, isOperator, approveGateway, writeContractAsync, publicClient]
   );
 
   /**

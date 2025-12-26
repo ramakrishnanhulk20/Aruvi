@@ -58,17 +58,17 @@ export function Refunds() {
     try {
       setIsLoading(true);
 
-      // PaymentSent event signature
+      // PaymentSent event signature - MUST match contract: event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to)
       const paymentSentEvent = parseAbiItem(
-        'event PaymentSent(bytes32 indexed paymentId, address indexed sender, address indexed recipient)'
+        'event PaymentSent(bytes32 indexed paymentId, address indexed from, address indexed to)'
       );
 
-      // Fetch payments received by the current user
+      // Fetch payments received by the current user (user is 'to')
       const receivedLogs = await publicClient.getLogs({
         address: CONTRACTS.ARUVI_GATEWAY as `0x${string}`,
         event: paymentSentEvent,
         args: {
-          recipient: address
+          to: address  // 'to' is recipient in contract
         },
         fromBlock: 'earliest',
         toBlock: 'latest'
@@ -78,8 +78,8 @@ export function Refunds() {
       const paymentsWithDetails: ReceivedPayment[] = [];
 
       for (const log of receivedLogs) {
-        const paymentId = log.args.paymentId as `0x${string}`;
-        const sender = log.args.sender as `0x${string}`;
+        const paymentId = (log.args as { paymentId: `0x${string}` }).paymentId;
+        const sender = (log.args as { from: `0x${string}` }).from;  // 'from' is sender in contract
 
         // Get block timestamp
         let timestamp = Math.floor(Date.now() / 1000);
