@@ -20,7 +20,7 @@ export declare const CONTRACTS: {
 };
 export declare const DEFAULTS: {
     readonly appUrl: {
-        readonly testnet: "http://localhost:5173";
+        readonly testnet: "https://aruvi-dapp.vercel.app";
         readonly mainnet: "https://app.aruvi.io";
     };
     readonly theme: {

@@ -1,6 +1,6 @@
 {
   "name": "@aruvi/sdk",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Aruvi Payment SDK - Accept private payments on your website",
   "type": "module",
   "main": "dist/aruvi-sdk.umd.js",

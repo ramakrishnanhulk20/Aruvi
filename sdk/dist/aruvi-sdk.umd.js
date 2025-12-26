@@ -32,7 +32,7 @@
   // ============================================================================
   const DEFAULTS = {
       appUrl: {
-          testnet: 'http://localhost:5173', // Change to https://testnet.aruvi.io when deployed
+          testnet: 'https://aruvi-dapp.vercel.app', // Production testnet URL
           mainnet: 'https://app.aruvi.io',
       }};
   // ============================================================================
