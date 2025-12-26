@@ -333,8 +333,10 @@ export function Checkout() {
                 key="review"
                 data={checkoutData}
                 address={address!}
-                hasBalance={hasCusdcBalance || hasUsdcBalance}
-                balance={formattedDecryptedBalance || formattedErc20Balance || '0'}
+                hasCusdcBalance={hasCusdcBalance}
+                hasUsdcBalance={hasUsdcBalance}
+                cusdcBalance={formattedDecryptedBalance || '0'}
+                usdcBalance={formattedErc20Balance || '0'}
                 fhevmReady={fhevmReady}
                 onPay={handlePay}
                 onCancel={handleCancel}
@@ -482,16 +484,19 @@ function ConnectStep({ data, connectors, isConnecting, onConnect, showOptions, o
 interface ReviewStepProps {
   data: CheckoutData;
   address: `0x${string}`;
-  hasBalance: boolean;
-  balance: string;
+  hasCusdcBalance: boolean;
+  hasUsdcBalance: boolean;
+  cusdcBalance: string;
+  usdcBalance: string;
   fhevmReady: boolean;
   onPay: () => void;
   onCancel: () => void;
   onDisconnect: () => void;
 }
 
-function ReviewStep({ data, address, hasBalance, balance, fhevmReady, onPay, onCancel, onDisconnect }: ReviewStepProps) {
-  const insufficientBalance = hasBalance && parseFloat(balance) < parseFloat(data.amount);
+function ReviewStep({ data, address, hasCusdcBalance, hasUsdcBalance, cusdcBalance, usdcBalance, fhevmReady, onPay, onCancel, onDisconnect }: ReviewStepProps) {
+  const insufficientCusdc = !hasCusdcBalance || parseFloat(cusdcBalance) < parseFloat(data.amount);
+  const canWrapUsdc = hasUsdcBalance && parseFloat(usdcBalance) >= parseFloat(data.amount);
 
   return (
     <motion.div
@@ -535,13 +540,35 @@ function ReviewStep({ data, address, hasBalance, balance, fhevmReady, onPay, onC
 
         <div className="flex items-center justify-between py-3">
           <span className="text-gray-600">Your Balance</span>
-          <span className="text-gray-900">{balance} USDC</span>
+          <span className="text-gray-900">
+            {hasCusdcBalance ? (
+              <span>{cusdcBalance} <span className="text-[#0070ba] font-medium">cUSDC</span></span>
+            ) : (
+              <span className="text-gray-400">0 cUSDC</span>
+            )}
+          </span>
         </div>
 
-        {insufficientBalance && (
+        {insufficientCusdc && !canWrapUsdc && (
           <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm">
             <AlertCircle className="w-4 h-4 inline mr-2" />
-            Insufficient balance. Please add funds to continue.
+            Insufficient cUSDC balance. Please wrap USDC to cUSDC first.
+          </div>
+        )}
+
+        {insufficientCusdc && canWrapUsdc && (
+          <div className="bg-amber-50 text-amber-700 p-4 rounded-xl text-sm">
+            <AlertCircle className="w-4 h-4 inline mr-2" />
+            You have {usdcBalance} USDC available.{' '}
+            <a 
+              href="https://aruvi-dapp.vercel.app" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="underline font-medium hover:text-amber-800"
+            >
+              Wrap to cUSDC
+            </a>{' '}
+            to make this payment.
           </div>
         )}
 
@@ -562,7 +589,7 @@ function ReviewStep({ data, address, hasBalance, balance, fhevmReady, onPay, onC
           </button>
           <button
             onClick={onPay}
-            disabled={insufficientBalance || !fhevmReady}
+            disabled={insufficientCusdc || !fhevmReady}
             className="flex-1 py-3 px-4 bg-[#003087] hover:bg-[#002060] text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Shield className="w-5 h-5" />
