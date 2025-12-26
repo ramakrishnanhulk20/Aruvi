@@ -382,7 +382,7 @@ class CheckoutModal {
         iframe.className = 'aruvi-modal-iframe';
         iframe.style.display = 'none';
         iframe.src = this.buildCheckoutUrl(payment);
-        iframe.setAttribute('allow', 'clipboard-write; web3');
+        iframe.setAttribute('allow', 'clipboard-write');
         iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
         iframe.onload = () => {
             loading.style.display = 'none';
@@ -950,6 +950,31 @@ class Aruvi {
         // Validate amount
         if (!paymentData.amount || isNaN(parseFloat(paymentData.amount))) {
             throw new Error('Aruvi: Valid amount is required');
+        }
+        // Handle redirect mode
+        if (paymentData.mode === 'redirect') {
+            if (!paymentData.successUrl) {
+                throw new Error('Aruvi: successUrl is required when using redirect mode');
+            }
+            // Build checkout URL and redirect
+            const appUrl = this.config.appUrl || DEFAULTS.appUrl[this.config.environment || 'testnet'];
+            const params = new URLSearchParams();
+            params.set('merchant', this.config.merchantAddress);
+            params.set('amount', paymentData.amount);
+            if (paymentData.reference)
+                params.set('ref', paymentData.reference);
+            if (paymentData.description)
+                params.set('desc', paymentData.description);
+            if (paymentData.customerEmail)
+                params.set('email', paymentData.customerEmail);
+            if (paymentData.metadata)
+                params.set('meta', JSON.stringify(paymentData.metadata));
+            if (paymentData.successUrl)
+                params.set('success', paymentData.successUrl);
+            if (paymentData.cancelUrl)
+                params.set('cancel', paymentData.cancelUrl);
+            window.location.href = `${appUrl}/checkout?${params.toString()}`;
+            return;
         }
         const callbacks = {
             onSuccess: (result) => {
