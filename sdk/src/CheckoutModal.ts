@@ -157,7 +157,7 @@ export class CheckoutModal {
     iframe.className = 'aruvi-modal-iframe';
     iframe.style.display = 'none';
     iframe.src = this.buildCheckoutUrl(payment);
-    iframe.setAttribute('allow', 'clipboard-write; web3');
+    iframe.setAttribute('allow', 'clipboard-write');
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
     
     iframe.onload = () => {

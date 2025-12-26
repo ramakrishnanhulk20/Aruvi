@@ -66,11 +66,26 @@ export interface AruviTheme {
 // Payment Types
 // ============================================================================
 
+/**
+ * Checkout mode
+ * - 'modal': Opens checkout in an iframe modal (default)
+ * - 'redirect': Redirects the page to the checkout URL
+ */
+export type CheckoutMode = 'modal' | 'redirect';
+
 export interface PaymentRequest {
   /**
    * Amount in USDC (e.g., '10.00' for $10)
    */
   amount: string;
+  
+  /**
+   * Checkout mode: 'modal' (default) or 'redirect'
+   * - modal: Opens checkout in an iframe overlay
+   * - redirect: Redirects browser to checkout page (successUrl/cancelUrl required)
+   * @default 'modal'
+   */
+  mode?: CheckoutMode;
   
   /**
    * Optional: Reference ID for your records

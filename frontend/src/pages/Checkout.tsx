@@ -608,6 +608,26 @@ function SuccessStep({ data, txHash, paymentId, onClose }: SuccessStepProps) {
     toast.success('Copied!');
   };
 
+  // Handle Done button - redirect to successUrl if provided (for non-SDK mode)
+  const handleDone = () => {
+    if (data.successUrl && !data.isSDK) {
+      // Build redirect URL with payment info
+      try {
+        const url = new URL(data.successUrl);
+        url.searchParams.set('paymentId', paymentId);
+        url.searchParams.set('txHash', txHash);
+        url.searchParams.set('status', 'success');
+        window.location.href = url.toString();
+      } catch {
+        // If URL parsing fails, just append as query string
+        const separator = data.successUrl.includes('?') ? '&' : '?';
+        window.location.href = `${data.successUrl}${separator}paymentId=${paymentId}&txHash=${txHash}&status=success`;
+      }
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -653,10 +673,10 @@ function SuccessStep({ data, txHash, paymentId, onClose }: SuccessStepProps) {
         </div>
 
         <button
-          onClick={onClose}
+          onClick={handleDone}
           className="w-full py-3 px-4 bg-[#003087] hover:bg-[#002060] text-white rounded-xl font-medium transition-colors"
         >
-          {data.isSDK ? 'Close' : 'Done'}
+          {data.isSDK ? 'Close' : (data.successUrl ? 'Continue' : 'Done')}
         </button>
       </div>
     </motion.div>

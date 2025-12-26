@@ -172,7 +172,75 @@ document.getElementById('my-checkout-btn').onclick = function() {
 
 ---
 
-### Method 3: Payment Links
+### Method 2b: Redirect Mode
+
+For cases where iframe modals don't work well (mobile browsers, strict CSP), use redirect mode:
+
+```javascript
+Aruvi.init({ environment: 'testnet' });
+
+document.getElementById('pay-btn').onclick = function() {
+  Aruvi.checkout({
+    amount: '49.99',
+    merchant: '0xYourAddress',
+    description: 'Premium Plan',
+    mode: 'redirect', // ← Use redirect instead of modal
+    successUrl: 'https://yoursite.com/payment-success',
+    cancelUrl: 'https://yoursite.com/payment-cancelled'
+  });
+};
+```
+
+**How Redirect Mode Works:**
+1. User is redirected to Aruvi's checkout page
+2. After payment, user is redirected back to your `successUrl` with query params:
+   - `?paymentId=0x...&txHash=0x...&status=success`
+3. If cancelled, user goes to `cancelUrl` with `?status=cancelled`
+
+**When to Use Redirect Mode:**
+- Mobile-first applications
+- Sites with strict Content Security Policy
+- When you prefer full-page checkout experience
+- For server-rendered applications (PHP, Rails, etc.)
+
+---
+
+### Method 3: Direct Payment Links (Recommended for Simplicity)
+
+The most reliable integration method — direct checkout URLs that work everywhere:
+
+```javascript
+// Build checkout URL manually
+const checkoutUrl = new URL('https://aruvi-dapp.vercel.app/checkout');
+checkoutUrl.searchParams.set('merchant', '0xYourAddress');
+checkoutUrl.searchParams.set('amount', '49.99');
+checkoutUrl.searchParams.set('desc', 'Premium Plan');
+checkoutUrl.searchParams.set('ref', 'ORDER-123');
+checkoutUrl.searchParams.set('success', 'https://yoursite.com/success');
+checkoutUrl.searchParams.set('cancel', 'https://yoursite.com/cancel');
+
+// Use this URL anywhere: buttons, emails, QR codes
+console.log(checkoutUrl.toString());
+```
+
+**URL Parameters:**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `merchant` | Yes | Your wallet address |
+| `amount` | Yes | Payment amount (e.g., "49.99") |
+| `desc` | No | Payment description |
+| `ref` | No | Your order/reference ID |
+| `success` | No* | Redirect URL after successful payment |
+| `cancel` | No* | Redirect URL if user cancels |
+| `email` | No | Pre-fill customer email |
+| `meta` | No | JSON-encoded metadata |
+
+*Required for redirect-based flows
+
+---
+
+### Method 5: SDK Payment Links
 
 Generate shareable payment links:
 
@@ -198,7 +266,7 @@ console.log(link);
 
 ---
 
-### Method 4: React Components
+### Method 6: React Components
 
 For React applications, use the pre-built components:
 
